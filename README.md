@@ -1,22 +1,25 @@
-# Research Server Instruction
+# Research Server Wiki
 
-Документация для пользователей и администраторов исследовательского сервера `10.200.1.180`.
+Wiki по работе с исследовательским сервером `10.200.1.180`.
 
-Основная инструкция:
+Начните отсюда:
 
-- [Инструкция по работе с исследовательским сервером](docs/research_server_user_guide.md)
+- [Главная страница wiki](docs/index.md)
 
-В инструкции описано:
+Для пользователей:
 
-- подключение через университетский VPN;
-- первый вход в JupyterHub;
-- подтверждение пользователей администратором;
-- работа с личными, проектными и общими данными;
-- загрузка датасетов с диска и из облака;
-- использование GPU;
-- мониторинг в Grafana;
-- перезапуск JupyterLab;
-- запрос собственного Docker-образа;
-- запуск отдельного JupyterLab-контейнера;
-- правила безопасности.
+- [Быстрый старт](docs/user/getting-started.md)
+- [Данные и датасеты](docs/user/data.md)
+- [Окружения, библиотеки и свои Docker-образы](docs/user/environments.md)
+- [GPU, ресурсы и мониторинг](docs/user/gpu-and-monitoring.md)
+- [Что делать, если что-то не работает](docs/user/troubleshooting.md)
+
+Для администраторов:
+
+- [Обзор платформы](docs/admin/overview.md)
+- [Пользователи и доступ](docs/admin/users.md)
+- [Проекты и данные](docs/admin/data-and-projects.md)
+- [Docker-образы и отдельные контейнеры](docs/admin/images-and-containers.md)
+- [Эксплуатация и мониторинг](docs/admin/operations-monitoring.md)
+- [Безопасность](docs/admin/security.md)
 
