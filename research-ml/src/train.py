@@ -269,12 +269,13 @@ def main() -> None:
         model = torch.compile(model)
 
     synthetic_weight = float(config["training"].get("synthetic_weight", 1.0))
-    criterion = build_loss(
+    train_criterion = build_loss(
         config,
         class_counts_for_loss(bundle),
         device,
         reduction="none" if synthetic_weight != 1.0 else "mean",
     )
+    eval_criterion = build_loss(config, class_counts_for_loss(bundle), device, reduction="mean")
     optimizer = make_optimizer(config, model)
     scheduler = make_scheduler(config, optimizer)
     dtype = autocast_dtype(config)
@@ -288,8 +289,8 @@ def main() -> None:
     start = time.time()
 
     for epoch in range(1, int(config["training"]["epochs"]) + 1):
-        train_metrics = train_one_epoch(model, bundle.loaders["train"], criterion, optimizer, device, config, scaler, epoch)
-        val_metrics, val_predictions = evaluate(model, bundle.loaders["val"], criterion, device, config, bundle.idx_to_class)
+        train_metrics = train_one_epoch(model, bundle.loaders["train"], train_criterion, optimizer, device, config, scaler, epoch)
+        val_metrics, val_predictions = evaluate(model, bundle.loaders["val"], eval_criterion, device, config, bundle.idx_to_class)
         scheduler.step()
 
         metrics_row = {"epoch": epoch, "lr": optimizer.param_groups[0]["lr"]}
@@ -323,7 +324,7 @@ def main() -> None:
 
     checkpoint = torch.load(run_dir / "best.pt", map_location=device)
     load_model_state(model, checkpoint["model"])
-    test_metrics, test_predictions = evaluate(model, bundle.loaders["test"], criterion, device, config, bundle.idx_to_class)
+    test_metrics, test_predictions = evaluate(model, bundle.loaders["test"], eval_criterion, device, config, bundle.idx_to_class)
     write_json(run_dir / "test_metrics.json", test_metrics)
     if bool(config["evaluation"]["save_predictions"]):
         test_predictions.to_csv(run_dir / "test_predictions.csv", index=False)
