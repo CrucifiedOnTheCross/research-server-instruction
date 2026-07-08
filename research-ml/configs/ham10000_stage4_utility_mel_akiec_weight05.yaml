@@ -1,0 +1,25 @@
+experiment:
+  name: ham10000_stage4_utility_mel_akiec_weight05
+  notes: "Stage 4: class-specific ablation, utility-selected synthetic mel+akiec only, synthetic loss weight 0.5."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage4/train_stage4_utility_mel_akiec.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 60
+  batch_size: 96
+  lr: 0.00025
+  synthetic_weight: 0.5
+
+imbalance:
+  sampler: weighted
+  loss: cross_entropy
+  class_weights: none
+
