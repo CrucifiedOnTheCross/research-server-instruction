@@ -1,0 +1,24 @@
+experiment:
+  name: ham10000_stage7_real_logit_adjust_tau1
+  notes: "Stage 7: real-only logit-adjusted cross-entropy baseline for long-tail comparison."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/train.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 60
+  batch_size: 96
+  lr: 0.00025
+
+imbalance:
+  sampler: weighted
+  loss: logit_adjustment
+  logit_adjustment_tau: 1.0
+  class_weights: none
