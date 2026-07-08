@@ -1,2 +1,13 @@
 outputs/
+.venv-local/
+tmp/
+research-ml/.venv/
+research-ml/**/__pycache__/
+research-ml/**/*.pyc
+research-ml/outputs/
+research-ml/data/
+research-ml/*.pt
+research-ml/*.ckpt
+*.zip
+
 

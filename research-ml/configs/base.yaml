@@ -1,0 +1,82 @@
+experiment:
+  name: imbalance_synthetic_baseline
+  output_dir: outputs
+  tags: [long_tail, synthetic, real_only_test]
+  notes: "Controlled image-classification experiment with imbalance-aware baselines."
+
+runtime:
+  seed: 42
+  deterministic: false
+  device: cuda
+  amp: bf16
+  compile: false
+  channels_last: true
+  matmul_precision: high
+  num_workers: 12
+  pin_memory: true
+  prefetch_factor: 4
+  persistent_workers: true
+
+data:
+  root: /srv/research/projects/default/data
+  train_csv: train.csv
+  val_csv: val.csv
+  test_csv: test.csv
+  image_col: image_path
+  label_col: label
+  synthetic_col: is_synthetic
+  class_map: null
+  image_size: 224
+  val_size: 224
+  allow_synthetic_in_eval: false
+
+augmentation:
+  train:
+    random_resized_crop: true
+    scale: [0.75, 1.0]
+    horizontal_flip: 0.5
+    vertical_flip: 0.5
+    color_jitter: [0.10, 0.10, 0.10, 0.03]
+    randaugment: false
+  eval:
+    resize: 256
+    center_crop: true
+  normalize:
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+  pretrained: true
+  drop_rate: 0.0
+  drop_path_rate: 0.1
+
+training:
+  epochs: 50
+  batch_size: 96
+  accumulation_steps: 1
+  optimizer: adamw
+  lr: 0.0003
+  weight_decay: 0.05
+  scheduler: cosine
+  warmup_epochs: 3
+  min_lr: 0.000001
+  max_grad_norm: 1.0
+  early_stopping_patience: 12
+  monitor: val/macro_f1
+  monitor_mode: max
+
+imbalance:
+  sampler: none
+  loss: cross_entropy
+  class_weights: none
+  focal_gamma: 2.0
+  balanced_softmax: false
+  logit_adjustment_tau: 0.0
+
+evaluation:
+  primary_metric: macro_f1
+  save_confusion_matrix: true
+  save_predictions: true
+  ece_bins: 15
+

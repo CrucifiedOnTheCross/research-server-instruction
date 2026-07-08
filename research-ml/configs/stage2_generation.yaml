@@ -1,0 +1,27 @@
+generation:
+  name: ham10000_mel_boundary_img2img_v1
+  model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
+  output_dir: synthetic/ham10000_mel_boundary_img2img_v1
+  seed: 20260708
+  num_images_per_real: 2
+  image_size: 512
+  strength: 0.35
+  guidance_scale: 6.0
+  inference_steps: 30
+  batch_size: 1
+  target_classes: [mel, akiec, bkl]
+  max_real_per_class: 160
+  prompt_templates:
+    mel: "clinical dermoscopic image of melanoma skin lesion, realistic dermoscopy, lesion-centered, high detail, medical image"
+    akiec: "clinical dermoscopic image of actinic keratosis skin lesion, realistic dermoscopy, lesion-centered, high detail, medical image"
+    bkl: "clinical dermoscopic image of benign keratosis-like skin lesion, realistic dermoscopy, lesion-centered, high detail, medical image"
+    nv: "clinical dermoscopic image of melanocytic nevus skin lesion, realistic dermoscopy, lesion-centered, high detail, medical image"
+    bcc: "clinical dermoscopic image of basal cell carcinoma skin lesion, realistic dermoscopy, lesion-centered, high detail, medical image"
+    df: "clinical dermoscopic image of dermatofibroma skin lesion, realistic dermoscopy, lesion-centered, high detail, medical image"
+    vasc: "clinical dermoscopic image of vascular skin lesion, realistic dermoscopy, lesion-centered, high detail, medical image"
+  confusing_classes:
+    mel: [nv, bkl]
+    akiec: [bkl, bcc]
+    bkl: [mel, nv, akiec]
+  negative_prompt_base: "cartoon, illustration, text, watermark, ruler, marker, hair, blurry, low quality, duplicate, out of frame, non dermoscopic, non medical"
+

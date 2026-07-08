@@ -1,0 +1,24 @@
+experiment:
+  name: ham10000_stage2_synthetic
+  notes: "Stage 2: targeted synthetic augmentation for confusing HAM10000 class boundaries."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/train_stage2_selected.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 60
+  batch_size: 96
+  lr: 0.00025
+
+imbalance:
+  sampler: weighted
+  loss: cross_entropy
+  class_weights: none
+

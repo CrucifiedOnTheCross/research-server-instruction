@@ -1,0 +1,24 @@
+experiment:
+  name: ham10000_stage1_feature_aware_synthetic
+  notes: "Stage 1: compare real-only and synthetic-augmented training under controlled ratios."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/train.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 60
+  batch_size: 96
+  lr: 0.00025
+
+imbalance:
+  sampler: weighted
+  loss: balanced_softmax
+  class_weights: none
+

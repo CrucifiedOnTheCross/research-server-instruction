@@ -1,0 +1,16 @@
+torch
+torchvision
+timm
+numpy
+pandas
+scikit-learn
+Pillow
+PyYAML
+tqdm
+tensorboard
+matplotlib
+seaborn
+isic-cli
+diffusers
+transformers
+accelerate
