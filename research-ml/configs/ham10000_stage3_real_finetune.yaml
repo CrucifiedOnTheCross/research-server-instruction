@@ -1,0 +1,27 @@
+experiment:
+  name: ham10000_stage3_real_finetune
+  notes: "Stage 3: short real-only fine-tune after the best synthetic-weight candidate."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/train.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 15
+  batch_size: 96
+  lr: 0.00005
+  warmup_epochs: 1
+  early_stopping_patience: 5
+  synthetic_weight: 1.0
+
+imbalance:
+  sampler: weighted
+  loss: cross_entropy
+  class_weights: none
+

@@ -106,6 +106,7 @@ def train_one_epoch(
     optimizer.zero_grad(set_to_none=True)
 
     progress = tqdm(loader, desc=f"train {epoch}", leave=False)
+    synthetic_weight = float(config["training"].get("synthetic_weight", 1.0))
     for step, batch in enumerate(progress, start=1):
         images = batch["image"].to(device, non_blocking=True)
         targets = batch["target"].to(device, non_blocking=True)
@@ -114,7 +115,14 @@ def train_one_epoch(
 
         with torch.amp.autocast(device_type=device.type, dtype=dtype, enabled=dtype is not None and device.type == "cuda"):
             logits = model(images)
-            loss = criterion(logits, targets) / accumulation
+            loss_raw = criterion(logits, targets)
+            if synthetic_weight != 1.0:
+                is_synthetic = batch["is_synthetic"].to(device, non_blocking=True).float()
+                weights = torch.where(is_synthetic > 0, torch.full_like(is_synthetic, synthetic_weight), torch.ones_like(is_synthetic))
+                loss = (loss_raw * weights).sum() / weights.sum().clamp_min(1.0)
+            else:
+                loss = loss_raw.mean() if loss_raw.ndim > 0 else loss_raw
+            loss = loss / accumulation
 
         if scaler is not None:
             scaler.scale(loss).backward()
@@ -260,7 +268,13 @@ def main() -> None:
     if bool(config["runtime"]["compile"]) and hasattr(torch, "compile"):
         model = torch.compile(model)
 
-    criterion = build_loss(config, class_counts_for_loss(bundle), device)
+    synthetic_weight = float(config["training"].get("synthetic_weight", 1.0))
+    criterion = build_loss(
+        config,
+        class_counts_for_loss(bundle),
+        device,
+        reduction="none" if synthetic_weight != 1.0 else "mean",
+    )
     optimizer = make_optimizer(config, model)
     scheduler = make_scheduler(config, optimizer)
     dtype = autocast_dtype(config)

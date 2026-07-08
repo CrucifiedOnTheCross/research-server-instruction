@@ -65,6 +65,7 @@ training:
   early_stopping_patience: 12
   monitor: val/macro_f1
   monitor_mode: max
+  synthetic_weight: 1.0
 
 imbalance:
   sampler: none
@@ -79,4 +80,3 @@ evaluation:
   save_confusion_matrix: true
   save_predictions: true
   ece_bins: 15
-

@@ -1,0 +1,25 @@
+experiment:
+  name: ham10000_stage3_utility_weight025
+  notes: "Stage 3: utility-aware selected synthetic samples with synthetic loss weight 0.25."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage3/train_stage3_utility.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 60
+  batch_size: 96
+  lr: 0.00025
+  synthetic_weight: 0.25
+
+imbalance:
+  sampler: weighted
+  loss: cross_entropy
+  class_weights: none
+
