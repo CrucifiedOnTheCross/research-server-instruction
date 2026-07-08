@@ -97,6 +97,7 @@ def train_one_epoch(
     config: dict[str, Any],
     scaler: torch.amp.GradScaler | None,
     epoch: int,
+    synthetic_weight_by_class: torch.Tensor | None = None,
 ) -> dict[str, float]:
     model.train()
     dtype = autocast_dtype(config)
@@ -107,6 +108,7 @@ def train_one_epoch(
 
     progress = tqdm(loader, desc=f"train {epoch}", leave=False)
     synthetic_weight = float(config["training"].get("synthetic_weight", 1.0))
+    use_weighting = synthetic_weight != 1.0 or synthetic_weight_by_class is not None
     for step, batch in enumerate(progress, start=1):
         images = batch["image"].to(device, non_blocking=True)
         targets = batch["target"].to(device, non_blocking=True)
@@ -116,9 +118,13 @@ def train_one_epoch(
         with torch.amp.autocast(device_type=device.type, dtype=dtype, enabled=dtype is not None and device.type == "cuda"):
             logits = model(images)
             loss_raw = criterion(logits, targets)
-            if synthetic_weight != 1.0:
+            if use_weighting:
                 is_synthetic = batch["is_synthetic"].to(device, non_blocking=True).float()
-                weights = torch.where(is_synthetic > 0, torch.full_like(is_synthetic, synthetic_weight), torch.ones_like(is_synthetic))
+                if synthetic_weight_by_class is not None:
+                    class_weights = synthetic_weight_by_class.to(device=device, dtype=is_synthetic.dtype)[targets]
+                else:
+                    class_weights = torch.full_like(is_synthetic, synthetic_weight)
+                weights = torch.where(is_synthetic > 0, class_weights, torch.ones_like(is_synthetic))
                 loss = (loss_raw * weights).sum() / weights.sum().clamp_min(1.0)
             else:
                 loss = loss_raw.mean() if loss_raw.ndim > 0 else loss_raw
@@ -240,6 +246,19 @@ def load_model_state(model: nn.Module, state_dict: dict[str, torch.Tensor]) -> N
     target.load_state_dict(state_dict)
 
 
+def synthetic_weight_vector(config: dict[str, Any], class_to_idx: dict[str, int], device: torch.device) -> torch.Tensor | None:
+    weights = config["training"].get("synthetic_weight_per_class")
+    if not weights:
+        return None
+    default = float(config["training"].get("synthetic_weight", 1.0))
+    values = torch.full((len(class_to_idx),), default, dtype=torch.float32, device=device)
+    for label, value in weights.items():
+        if label not in class_to_idx:
+            raise ValueError(f"Unknown class in training.synthetic_weight_per_class: {label}")
+        values[class_to_idx[label]] = float(value)
+    return values
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args.config, args.overrides)
@@ -269,11 +288,21 @@ def main() -> None:
         model = torch.compile(model)
 
     synthetic_weight = float(config["training"].get("synthetic_weight", 1.0))
+    synthetic_weight_by_class = synthetic_weight_vector(config, bundle.class_to_idx, device)
+    if synthetic_weight_by_class is not None:
+        write_json(
+            run_dir / "synthetic_weight_by_class.json",
+            {label: float(synthetic_weight_by_class[idx].detach().cpu()) for label, idx in bundle.class_to_idx.items()},
+        )
+        logger.info(
+            "Synthetic weights by class: %s",
+            {label: float(synthetic_weight_by_class[idx].detach().cpu()) for label, idx in bundle.class_to_idx.items()},
+        )
     train_criterion = build_loss(
         config,
         class_counts_for_loss(bundle),
         device,
-        reduction="none" if synthetic_weight != 1.0 else "mean",
+        reduction="none" if synthetic_weight != 1.0 or synthetic_weight_by_class is not None else "mean",
     )
     eval_criterion = build_loss(config, class_counts_for_loss(bundle), device, reduction="mean")
     optimizer = make_optimizer(config, model)
@@ -289,7 +318,17 @@ def main() -> None:
     start = time.time()
 
     for epoch in range(1, int(config["training"]["epochs"]) + 1):
-        train_metrics = train_one_epoch(model, bundle.loaders["train"], train_criterion, optimizer, device, config, scaler, epoch)
+        train_metrics = train_one_epoch(
+            model,
+            bundle.loaders["train"],
+            train_criterion,
+            optimizer,
+            device,
+            config,
+            scaler,
+            epoch,
+            synthetic_weight_by_class,
+        )
         val_metrics, val_predictions = evaluate(model, bundle.loaders["val"], eval_criterion, device, config, bundle.idx_to_class)
         scheduler.step()
 

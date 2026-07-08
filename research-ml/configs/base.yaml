@@ -66,6 +66,7 @@ training:
   monitor: val/macro_f1
   monitor_mode: max
   synthetic_weight: 1.0
+  synthetic_weight_per_class: null
 
 imbalance:
   sampler: none

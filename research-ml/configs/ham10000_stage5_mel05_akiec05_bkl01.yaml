@@ -1,0 +1,29 @@
+experiment:
+  name: ham10000_stage5_mel05_akiec05_bkl01
+  notes: "Stage 5: per-class synthetic weights on full utility pool, very low bkl dose."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage3/train_stage3_utility.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 60
+  batch_size: 96
+  lr: 0.00025
+  synthetic_weight: 0.5
+  synthetic_weight_per_class:
+    mel: 0.5
+    akiec: 0.5
+    bkl: 0.1
+
+imbalance:
+  sampler: weighted
+  loss: cross_entropy
+  class_weights: none
+
