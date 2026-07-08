@@ -1,0 +1,28 @@
+experiment:
+  name: ham10000_stage6_geometry_mel_akiec
+  notes: "Stage 6: PRDC/feature-geometry filtered mel+akiec synthetic data; bkl excluded."
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage6/train_stage6_geometry_mel_akiec.csv
+  val_csv: splits/val.csv
+  test_csv: splits/test.csv
+  image_size: 224
+
+model:
+  name: convnext_tiny.fb_in22k_ft_in1k
+
+training:
+  epochs: 60
+  batch_size: 96
+  lr: 0.00025
+  synthetic_weight: 0.5
+  synthetic_weight_per_class:
+    mel: 0.5
+    akiec: 0.5
+    bkl: 0.0
+
+imbalance:
+  sampler: weighted
+  loss: cross_entropy
+  class_weights: none
