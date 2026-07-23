@@ -361,17 +361,36 @@ def main() -> None:
             logger.info("Early stopping triggered.")
             break
 
-    checkpoint = torch.load(run_dir / "best.pt", map_location=device)
-    load_model_state(model, checkpoint["model"])
-    test_metrics, test_predictions = evaluate(model, bundle.loaders["test"], eval_criterion, device, config, bundle.idx_to_class)
-    write_json(run_dir / "test_metrics.json", test_metrics)
-    if bool(config["evaluation"]["save_predictions"]):
-        test_predictions.to_csv(run_dir / "test_predictions.csv", index=False)
-    if bool(config["evaluation"]["save_confusion_matrix"]):
-        write_json(run_dir / "test_confusion_matrix.json", test_metrics["confusion_matrix"])
+    test_metrics: dict[str, Any] = {}
+    if bool(config["evaluation"].get("run_test", True)):
+        checkpoint = torch.load(run_dir / "best.pt", map_location=device)
+        load_model_state(model, checkpoint["model"])
+        test_metrics, test_predictions = evaluate(
+            model,
+            bundle.loaders["test"],
+            eval_criterion,
+            device,
+            config,
+            bundle.idx_to_class,
+        )
+        write_json(run_dir / "test_metrics.json", test_metrics)
+        if bool(config["evaluation"]["save_predictions"]):
+            test_predictions.to_csv(run_dir / "test_predictions.csv", index=False)
+        if bool(config["evaluation"]["save_confusion_matrix"]):
+            write_json(run_dir / "test_confusion_matrix.json", test_metrics["confusion_matrix"])
+    else:
+        logger.info("Locked test evaluation skipped by evaluation.run_test=false.")
 
     elapsed = time.time() - start
-    write_json(run_dir / "summary.json", {"best_metric": best_metric, "elapsed_seconds": elapsed, "test": test_metrics})
+    write_json(
+        run_dir / "summary.json",
+        {
+            "best_metric": best_metric,
+            "elapsed_seconds": elapsed,
+            "test_evaluated": bool(config["evaluation"].get("run_test", True)),
+            "test": test_metrics,
+        },
+    )
     writer.close()
     logger.info("Finished in %.1f minutes. Test metrics: %s", elapsed / 60.0, test_metrics)
 

@@ -1,0 +1,44 @@
+experiment:
+  name: stage8_synthetic_dino_384
+  notes: "Stage 8 corrected synthetic candidates selected in an independent DINOv2 feature space."
+
+runtime:
+  deterministic: true
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage8/train_stage8_dino_selected.csv
+  val_csv: splits/stage8/val_real.csv
+  test_csv: splits/stage8/locked_test_real.csv
+  image_size: 384
+  val_size: 384
+
+model:
+  name: convnext_base.fb_in22k_ft_in1k_384
+  drop_path_rate: 0.2
+
+augmentation:
+  eval:
+    resize: 438
+    center_crop: true
+
+training:
+  epochs: 50
+  batch_size: 32
+  accumulation_steps: 1
+  lr: 0.0001
+  warmup_epochs: 3
+  early_stopping_patience: 10
+  synthetic_weight: 0.5
+  synthetic_weight_per_class:
+    mel: 0.5
+    akiec: 0.5
+    bkl: 0.5
+
+imbalance:
+  sampler: weighted
+  loss: cross_entropy
+  class_weights: none
+
+evaluation:
+  run_test: false

@@ -126,6 +126,9 @@ def report_links(outputs: Path, tensorboard_url: str) -> str:
     candidates = [
         ("PCA/t-SNE", outputs / "reports" / "stage6_embedding_visuals" / "index.html"),
         ("Feature geometry", outputs / "reports" / "stage6_feature_geometry" / "index.html"),
+        ("Stage 8 artifact audit", outputs / "reports" / "stage8_artifact_audit" / "artifact_audit.json"),
+        ("Stage 8 DINO geometry", outputs / "reports" / "stage8_dino_geometry" / "index.html"),
+        ("Stage 8 multi-seed", outputs / "reports" / "stage8_multiseed" / "index.html"),
     ]
     for label, path in candidates:
         if path.exists():

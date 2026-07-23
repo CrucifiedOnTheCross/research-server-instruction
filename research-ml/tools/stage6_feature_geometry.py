@@ -10,9 +10,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import timm
 import torch
 from PIL import Image
 from sklearn.neighbors import NearestNeighbors
+from timm.data import create_transform, resolve_model_data_config
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
@@ -56,7 +58,9 @@ class RowImageDataset(Dataset):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Stage 6 feature-geometry diagnostics and geometry-filtered split builder.")
-    parser.add_argument("--encoder-run-dir", required=True, help="Run directory with best.pt and config.resolved.yaml.")
+    parser.add_argument("--encoder-run-dir", default=None, help="Run directory with best.pt and config.resolved.yaml.")
+    parser.add_argument("--data-config", default=None, help="Config used only to resolve data paths and class labels.")
+    parser.add_argument("--encoder-model", default=None, help="Independent pretrained timm encoder without task fine-tuning.")
     parser.add_argument("--synthetic-csv", required=True, help="Synthetic pool CSV relative to data root or absolute.")
     parser.add_argument("--out-dir", default="/srv/research/projects/default/ham10000/reports/stage6_feature_geometry")
     parser.add_argument("--split-out-dir", default="/srv/research/projects/default/ham10000/splits/stage6")
@@ -273,9 +277,12 @@ def render_html(report: dict[str, Any]) -> str:
 
 def main() -> None:
     args = parse_args()
-    run_dir = Path(args.encoder_run_dir)
+    if not args.encoder_run_dir and not args.data_config:
+        raise ValueError("Provide --encoder-run-dir or --data-config")
+    run_dir = Path(args.encoder_run_dir) if args.encoder_run_dir else None
+    config_path = run_dir / "config.resolved.yaml" if run_dir else Path(args.data_config)
     cfg = load_config(
-        run_dir / "config.resolved.yaml",
+        config_path,
         [
             f"training.batch_size={args.batch_size}",
             f"runtime.num_workers={args.num_workers}",
@@ -296,17 +303,25 @@ def main() -> None:
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     bundle = make_dataloaders(cfg)
-    model = create_model(cfg, len(bundle.class_to_idx)).to(device)
-    ckpt = torch.load(run_dir / "best.pt", map_location=device)
-    model.load_state_dict(ckpt["model"])
-    transform = build_transforms(cfg, train=False)
+    if args.encoder_model:
+        model = timm.create_model(args.encoder_model, pretrained=True, num_classes=0).to(device)
+        transform = create_transform(**resolve_model_data_config(model), is_training=False)
+        encoder_description = f"timm:{args.encoder_model}"
+    else:
+        if run_dir is None:
+            raise ValueError("--encoder-run-dir is required when --encoder-model is omitted")
+        model = create_model(cfg, len(bundle.class_to_idx)).to(device)
+        ckpt = torch.load(run_dir / "best.pt", map_location=device)
+        model.load_state_dict(ckpt["model"])
+        transform = build_transforms(cfg, train=False)
+        encoder_description = str(run_dir)
 
     train_csv = resolve_path(data_root, cfg["data"]["train_csv"])
     train_rows = read_rows(train_csv)
     real_rows = [
         row
         for row in train_rows
-        if str(row.get("label")) in target_set and int(row.get(cfg["data"]["synthetic_col"], 0)) == 0
+        if int(row.get(cfg["data"]["synthetic_col"], 0)) == 0
     ]
     synthetic_rows = [row for row in read_rows(synthetic_csv) if str(row.get("label")) in target_set]
 
@@ -422,7 +437,8 @@ def main() -> None:
     write_rows(split_out_dir / args.train_name, train_stage6, train_fields)
 
     report = {
-        "encoder_run_dir": str(run_dir),
+        "encoder": encoder_description,
+        "data_config": str(config_path),
         "synthetic_csv": str(synthetic_csv),
         "target_classes": target_classes,
         "select_classes": sorted(select_classes),

@@ -5,6 +5,7 @@ import platform
 import random
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -19,6 +20,7 @@ def set_seed(seed: int, deterministic: bool) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
 
     if deterministic:
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         torch.use_deterministic_algorithms(True, warn_only=True)
@@ -64,5 +66,8 @@ def collect_environment() -> dict[str, Any]:
     except Exception:
         env["git_commit"] = None
         env["git_dirty"] = None
+    code_version_path = Path(__file__).resolve().parents[1] / ".code-version"
+    env["deployed_code_version"] = (
+        code_version_path.read_text(encoding="utf-8").strip() if code_version_path.exists() else None
+    )
     return env
-

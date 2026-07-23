@@ -90,6 +90,11 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
             ops.append(transforms.RandAugment())
     else:
         eval_aug = aug["eval"]
+        if eval_aug["center_crop"] and int(eval_aug["resize"]) < int(data["val_size"]):
+            raise ValueError(
+                "augmentation.eval.resize must be >= data.val_size when center_crop=true; "
+                "otherwise torchvision pads the evaluation image."
+            )
         ops = [transforms.Resize(eval_aug["resize"])]
         if eval_aug["center_crop"]:
             ops.append(transforms.CenterCrop(data["val_size"]))

@@ -9,7 +9,7 @@ from typing import Any
 
 import torch
 import yaml
-from PIL import Image
+from PIL import Image, ImageOps
 from tqdm import tqdm
 
 
@@ -44,6 +44,7 @@ def write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "source",
         "source_image_path",
         "source_image_id",
+        "source_group_id",
         "prompt",
         "negative_prompt",
         "model_id",
@@ -51,6 +52,8 @@ def write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         "strength",
         "guidance_scale",
         "inference_steps",
+        "preprocess_mode",
+        "image_format",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -82,14 +85,18 @@ def load_pipeline(model_id: str):
     return pipe
 
 
-def open_image(path: Path, size: int) -> Image.Image:
+def open_image(path: Path, size: int, preprocess_mode: str) -> Image.Image:
     image = Image.open(path).convert("RGB")
-    image.thumbnail((size, size), Image.Resampling.LANCZOS)
-    canvas = Image.new("RGB", (size, size), (0, 0, 0))
-    left = (size - image.width) // 2
-    top = (size - image.height) // 2
-    canvas.paste(image, (left, top))
-    return canvas
+    if preprocess_mode == "center_crop":
+        return ImageOps.fit(
+            image,
+            (size, size),
+            method=Image.Resampling.LANCZOS,
+            centering=(0.5, 0.5),
+        )
+    if preprocess_mode == "stretch":
+        return image.resize((size, size), Image.Resampling.LANCZOS)
+    raise ValueError(f"Unknown preprocess_mode: {preprocess_mode}")
 
 
 def make_negative_prompt(label: str, config: dict[str, Any]) -> str:
@@ -138,41 +145,84 @@ def main() -> None:
     metadata_path = out_dir / "generation_config.resolved.yaml"
     metadata_path.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
-    plan_count = len(selected) * int(cfg["num_images_per_real"])
+    strengths = [float(value) for value in cfg.get("strengths", [cfg["strength"]])]
+    plan_count = len(selected) * int(cfg["num_images_per_real"]) * len(strengths)
     print(json.dumps({"selected_real": len(selected), "planned_synthetic": plan_count, "output": str(out_dir)}, indent=2))
     if args.dry_run:
         return
 
     pipe = load_pipeline(cfg["model_id"])
-    synthetic_rows: list[dict[str, Any]] = []
+    tasks: list[dict[str, Any]] = []
     base_seed = int(cfg["seed"])
     image_size = int(cfg["image_size"])
-
-    for row in tqdm(selected, desc="generate"):
+    preprocess_mode = str(cfg.get("preprocess_mode", "center_crop"))
+    image_format = str(cfg.get("image_format", "png")).lower()
+    if image_format not in {"png", "jpg", "jpeg"}:
+        raise ValueError("generation.image_format must be png, jpg, or jpeg")
+    extension = "jpg" if image_format in {"jpg", "jpeg"} else "png"
+    for row in selected:
         label = row["label"]
-        source_path = data_root / row["image_path"]
         prompt = cfg["prompt_templates"][label]
         negative_prompt = make_negative_prompt(label, cfg)
-        init_image = open_image(source_path, image_size)
-        label_dir = out_dir / label
-        label_dir.mkdir(parents=True, exist_ok=True)
-        source_id = row.get("image_id") or source_path.stem
-        for index in range(int(cfg["num_images_per_real"])):
-            seed = base_seed + len(synthetic_rows)
-            generator = torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu").manual_seed(seed)
-            result = pipe(
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                image=init_image,
-                strength=float(cfg["strength"]),
-                guidance_scale=float(cfg["guidance_scale"]),
-                num_inference_steps=int(cfg["inference_steps"]),
-                generator=generator,
-            )
-            image = result.images[0]
-            out_name = f"{label}_{source_id}_{index:02d}_{seed}.jpg"
+        source_id = row.get("image_id") or Path(row["image_path"]).stem
+        for strength in strengths:
+            for index in range(int(cfg["num_images_per_real"])):
+                seed = base_seed + len(tasks)
+                tasks.append(
+                    {
+                        "row": row,
+                        "label": label,
+                        "source_id": source_id,
+                        "prompt": prompt,
+                        "negative_prompt": negative_prompt,
+                        "strength": strength,
+                        "index": index,
+                        "seed": seed,
+                    }
+                )
+
+    synthetic_rows: list[dict[str, Any]] = []
+    batch_size = max(1, int(cfg.get("batch_size", 1)))
+    task_batches: list[list[dict[str, Any]]] = []
+    for strength in strengths:
+        strength_tasks = [task for task in tasks if float(task["strength"]) == strength]
+        strength_tasks.sort(key=lambda task: (str(task["label"]), str(task["source_id"])))
+        task_batches.extend(
+            strength_tasks[offset : offset + batch_size]
+            for offset in range(0, len(strength_tasks), batch_size)
+        )
+    for batch in tqdm(task_batches, desc="generate"):
+        init_images = [
+            open_image(data_root / task["row"]["image_path"], image_size, preprocess_mode)
+            for task in batch
+        ]
+        generators = [
+            torch.Generator(device="cuda" if torch.cuda.is_available() else "cpu").manual_seed(int(task["seed"]))
+            for task in batch
+        ]
+        result = pipe(
+            prompt=[str(task["prompt"]) for task in batch],
+            negative_prompt=[str(task["negative_prompt"]) for task in batch],
+            image=init_images,
+            strength=float(batch[0]["strength"]),
+            guidance_scale=float(cfg["guidance_scale"]),
+            num_inference_steps=int(cfg["inference_steps"]),
+            generator=generators,
+        )
+        for task, image in zip(batch, result.images):
+            row = task["row"]
+            label = str(task["label"])
+            source_id = str(task["source_id"])
+            seed = int(task["seed"])
+            strength_tag = f"{float(task['strength']):.2f}".replace(".", "p")
+            label_dir = out_dir / label
+            label_dir.mkdir(parents=True, exist_ok=True)
+            out_name = f"{label}_{source_id}_s{strength_tag}_{int(task['index']):02d}_{seed}.{extension}"
             out_path = label_dir / out_name
-            image.save(out_path, quality=95)
+            if extension == "png":
+                image.save(out_path, format="PNG", optimize=True)
+            else:
+                image.save(out_path, format="JPEG", quality=95, subsampling=0)
             synthetic_rows.append(
                 {
                     "image_path": out_path.relative_to(data_root).as_posix(),
@@ -183,13 +233,16 @@ def main() -> None:
                     "source": cfg["name"],
                     "source_image_path": row["image_path"],
                     "source_image_id": source_id,
-                    "prompt": prompt,
-                    "negative_prompt": negative_prompt,
+                    "source_group_id": row.get("group_id", source_id),
+                    "prompt": task["prompt"],
+                    "negative_prompt": task["negative_prompt"],
                     "model_id": cfg["model_id"],
                     "seed": seed,
-                    "strength": cfg["strength"],
+                    "strength": task["strength"],
                     "guidance_scale": cfg["guidance_scale"],
                     "inference_steps": cfg["inference_steps"],
+                    "preprocess_mode": preprocess_mode,
+                    "image_format": image_format,
                 }
             )
             if len(synthetic_rows) % 25 == 0:
@@ -201,4 +254,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

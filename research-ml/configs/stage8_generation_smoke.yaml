@@ -1,0 +1,23 @@
+generation:
+  name: ham10000_stage8_corrected_smoke
+  model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
+  output_dir: synthetic/ham10000_stage8_corrected_smoke
+  seed: 20260723
+  num_images_per_real: 1
+  image_size: 512
+  preprocess_mode: center_crop
+  image_format: png
+  strength: 0.30
+  strengths: [0.15, 0.30]
+  guidance_scale: 6.0
+  inference_steps: 5
+  batch_size: 2
+  target_classes: [mel]
+  max_real_per_class: 1
+  prompt_templates:
+    mel: "full-frame clinical dermoscopic image of melanoma, preserve the source lesion morphology, realistic skin texture, diagnostic detail, no frame or padding"
+    nv: "full-frame clinical dermoscopic image of melanocytic nevus"
+    bkl: "full-frame clinical dermoscopic image of a benign keratosis-like lesion"
+  confusing_classes:
+    mel: [nv, bkl]
+  negative_prompt_base: "cartoon, illustration, text, watermark, artificial black border, letterbox, frame, blurry, low quality, non-dermoscopic image"

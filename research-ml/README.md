@@ -195,3 +195,24 @@ runtime.deterministic=true runtime.amp=fp32 runtime.compile=false
 ```
 
 Полная битовая воспроизводимость на GPU может снижать скорость и не всегда гарантируется всеми CUDA-операциями, поэтому режим фиксируется в артефактах запуска.
+
+## Stage 8: исправленный протокол
+
+Stage 8 не использует старый synthetic pool с чёрными полями. Полный pipeline:
+
+```bash
+bash scripts/start_stage8_container.sh
+```
+
+Он последовательно:
+
+- создаёт новый group-aware train/validation/locked-test split;
+- генерирует кандидатов только из Stage 8 train;
+- прерывается, если pixel audit обнаруживает чёрные поля;
+- отбирает синтетику независимым DINOv2 encoder;
+- запускает четыре ConvNeXt Base 384 screening-ветки по seed 42-46;
+- сохраняет multi-seed сводку после каждого завершённого запуска;
+- не вычисляет метрики locked test до финального выбора метода.
+
+Полное научное обоснование и критерии принятия решения:
+`docs/stage8_methodology_repair_and_screening.md`.
