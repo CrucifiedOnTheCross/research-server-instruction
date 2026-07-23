@@ -29,6 +29,8 @@ training:
   lr: 0.0001
   warmup_epochs: 3
   early_stopping_patience: 10
+  save_last_checkpoint: false
+  checkpoint_include_optimizer: false
   synthetic_weight: 0.5
   synthetic_weight_per_class:
     mel: 0.5

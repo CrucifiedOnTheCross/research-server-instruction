@@ -225,20 +225,20 @@ def save_checkpoint(
     best_metric: float,
     config: dict[str, Any],
     class_to_idx: dict[str, int],
+    include_optimizer: bool,
 ) -> None:
     model_to_save = model._orig_mod if hasattr(model, "_orig_mod") else model
-    torch.save(
-        {
-            "epoch": epoch,
-            "model": model_to_save.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "scheduler": scheduler.state_dict(),
-            "best_metric": best_metric,
-            "config": config,
-            "class_to_idx": class_to_idx,
-        },
-        path,
-    )
+    checkpoint = {
+        "epoch": epoch,
+        "model": model_to_save.state_dict(),
+        "best_metric": best_metric,
+        "config": config,
+        "class_to_idx": class_to_idx,
+    }
+    if include_optimizer:
+        checkpoint["optimizer"] = optimizer.state_dict()
+        checkpoint["scheduler"] = scheduler.state_dict()
+    torch.save(checkpoint, path)
 
 
 def load_model_state(model: nn.Module, state_dict: dict[str, torch.Tensor]) -> None:
@@ -346,7 +346,17 @@ def main() -> None:
         if improved:
             best_metric = current
             bad_epochs = 0
-            save_checkpoint(run_dir / "best.pt", model, optimizer, scheduler, epoch, best_metric, config, bundle.class_to_idx)
+            save_checkpoint(
+                run_dir / "best.pt",
+                model,
+                optimizer,
+                scheduler,
+                epoch,
+                best_metric,
+                config,
+                bundle.class_to_idx,
+                bool(config["training"].get("checkpoint_include_optimizer", True)),
+            )
             if bool(config["evaluation"]["save_predictions"]):
                 val_predictions.to_csv(run_dir / "val_predictions_best.csv", index=False)
             write_json(run_dir / "val_metrics_best.json", val_metrics)
@@ -355,7 +365,18 @@ def main() -> None:
         else:
             bad_epochs += 1
 
-        save_checkpoint(run_dir / "last.pt", model, optimizer, scheduler, epoch, best_metric, config, bundle.class_to_idx)
+        if bool(config["training"].get("save_last_checkpoint", True)):
+            save_checkpoint(
+                run_dir / "last.pt",
+                model,
+                optimizer,
+                scheduler,
+                epoch,
+                best_metric,
+                config,
+                bundle.class_to_idx,
+                bool(config["training"].get("checkpoint_include_optimizer", True)),
+            )
         logger.info("Epoch %03d | val %s=%.6f | best=%.6f | bad_epochs=%d", epoch, monitor, current, best_metric, bad_epochs)
         if bad_epochs >= int(config["training"]["early_stopping_patience"]):
             logger.info("Early stopping triggered.")

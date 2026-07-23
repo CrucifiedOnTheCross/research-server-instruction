@@ -65,6 +65,8 @@ training:
   early_stopping_patience: 12
   monitor: val/macro_f1
   monitor_mode: max
+  save_last_checkpoint: true
+  checkpoint_include_optimizer: true
   synthetic_weight: 1.0
   synthetic_weight_per_class: null
 
