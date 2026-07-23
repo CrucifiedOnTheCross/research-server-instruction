@@ -130,6 +130,38 @@ If corrected off-the-shelf SD 1.5 still fails these criteria, the next generator
 - Decision: pending.
 - Follow-up hypothesis: if corrected SD 1.5 remains ineffective, test a train-only dermoscopy LoRA while freezing the classifier and evaluation protocol.
 
+#### Runtime verification: 2026-07-23 10:18
+
+- Structured sources checked: `artifact_audit.json`,
+  `stage6_feature_geometry_report.json`, `metrics.csv` and
+  `val_metrics_best.json`. Training logs were not used as a metric source.
+- Candidate generation completed with 1,440 images; the DINOv2 selector retained
+  80 images for each of `mel`, `akiec` and `bkl`.
+- The black-border audit passed. Median and p90 black-border share are zero for
+  both real and synthetic images. The single-feature AUROC based on black-border
+  share fell to `0.505`, compared with the almost perfectly separable old pool.
+- A residual domain gap remains. DINOv2 PRDC precision is `0.125` for `mel`,
+  `0.169` for `akiec` and `0.260` for `bkl`; coverage is `0.076`, `0.272` and
+  `0.120`, respectively. Only 35, 36 and 63 candidates passed the strict geometry
+  filter before the diversity/top-k fallback filled each class to 80.
+- The first real-only natural-CE run (`seed=42`) reached epoch 3 without metric
+  anomalies. Train loss changed `1.231 -> 0.627 -> 0.447`; validation macro F1
+  changed `0.136 -> 0.570 -> 0.591`; MCC changed
+  `0.078 -> 0.397 -> 0.520`. These early values are not used for model selection.
+- Twelve consecutive GPU samples showed 100% SM utilization, 68-88% memory
+  controller utilization, 13.7/16.3 GiB VRAM use and maximum 2,857 MHz SM clock.
+  No thermal or power violation was reported; temperature remained 61-66 C.
+- Host measurements showed 0% I/O wait, zero swap use, approximately 51 GiB
+  available RAM and 828 GiB free SSD space. CPU remained mostly idle because the
+  workload is GPU-bound and the 12 persistent DataLoader workers already keep the
+  GPU continuously supplied.
+- Decision: keep batch 32 and the current worker count. Increasing either during
+  the run would reduce memory headroom and break comparability without addressing
+  a measured bottleneck.
+- Follow-up check: compare the selected-pool PRDC metrics with downstream
+  five-seed utility. If utility remains absent, test whether strict-only selection
+  performs better than filling every class to a fixed top-k of 80.
+
 ### Engineering changes
 
 - ConvNeXt Base at 384 px replaces the 224 px Tiny screening backbone.
