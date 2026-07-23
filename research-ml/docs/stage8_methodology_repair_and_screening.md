@@ -105,3 +105,33 @@ Advance a synthetic policy only if, across five seeds, it:
 - passes the artifact audit and improves DINOv2 precision/coverage over the old pool.
 
 If corrected off-the-shelf SD 1.5 still fails these criteria, the next generator will be a train-only dermoscopy LoRA with the same downstream protocol. This avoids confusing a better generator with a changed classifier or evaluation split.
+
+## Research change log
+
+### S8-H1: artifact-free train-only generation
+
+- Status: running
+- Date: 2026-07-23
+- Code commits: `f33b52c`, `47ea4e8`
+- Observation: the old synthetic pool had near-black letterbox borders that were absent from real images, and a real-vs-synthetic detector separated the domains almost perfectly.
+- Hypothesis: removing padding artifacts and restricting img2img sources to the new training split will reduce the synthetic domain gap and make downstream utility measurable without source leakage.
+- Rationale: visual fidelity alone is insufficient; useful synthetic samples must be compatible with the real feature distribution and evaluation protocol.
+- Literature: Wang et al. (WACV 2024), Yamaguchi (MIDL 2025), Farooq et al. (Derm-T2IM), Samuel et al. (SeedSelect).
+- Code/config changes: corrected center-crop preprocessing, batched generation, source-group provenance, pixel audit, fresh group-aware split and independent DINOv2 selector.
+- Data and split: HAM10000 split by `lesion_id/group_id`; generation sources are restricted to `splits/stage8/train_real.csv`.
+- Independent variable: old artifact-contaminated pool versus corrected train-only pool.
+- Outcomes: artifact rate, real-vs-synthetic separability, DINOv2 precision/coverage and downstream validation macro F1/MCC.
+- Controls: real-only natural CE, real-only weighted CE and natural-sampling Logit Adjustment.
+- Seeds/folds: screening seeds 42-46; group-aware cross-validation is reserved for the two finalists.
+- Leakage safeguards: validation and locked-test source groups cannot appear in generation; locked-test evaluation is disabled during screening.
+- Predefined success criterion: the selected synthetic policy must improve five-seed validation macro F1 and MCC over both real-only controls without a material loss in balanced accuracy or worst-class recall.
+- Structured artifacts: `outputs/reports/stage8_artifact_audit`, `outputs/reports/stage8_dino_geometry`, `outputs/reports/stage8_multiseed` and per-run resolved configs/predictions.
+- Current result: pipeline launched; final scientific decision is pending structured multi-seed results.
+- Decision: pending.
+- Follow-up hypothesis: if corrected SD 1.5 remains ineffective, test a train-only dermoscopy LoRA while freezing the classifier and evaluation protocol.
+
+### Engineering changes
+
+- ConvNeXt Base at 384 px replaces the 224 px Tiny screening backbone.
+- Model-only best checkpoints are retained; optimizer state and redundant last checkpoints are disabled to keep multi-seed storage bounded.
+- The physical SSD LVM was expanded online from 100 GiB to approximately 951 GiB before the Stage 8 run.

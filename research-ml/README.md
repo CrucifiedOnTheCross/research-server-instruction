@@ -216,3 +216,7 @@ bash scripts/start_stage8_container.sh
 
 Полное научное обоснование и критерии принятия решения:
 `docs/stage8_methodology_repair_and_screening.md`.
+
+Обязательный порядок фиксации гипотез, изменений кода, проверок, результатов и
+использованной литературы:
+`docs/research_change_protocol.md`.
