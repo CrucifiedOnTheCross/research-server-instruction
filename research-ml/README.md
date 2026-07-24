@@ -228,6 +228,10 @@ bash scripts/start_stage8_container.sh
 проектировании следующего этапа:
 `docs/literature_update_synthetic_utility_and_long_tail_2026-07-24.md`.
 
+Зафиксированный Stage 9 protocol для undersampling, Balanced Softmax, cRT,
+source-matched replay и calibration:
+`docs/stage9_controlled_utility_protocol.md`.
+
 Обязательный порядок фиксации гипотез, изменений кода, проверок, результатов и
 использованной литературы:
 `docs/research_change_protocol.md`.

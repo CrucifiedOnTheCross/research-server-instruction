@@ -73,12 +73,19 @@ def compute_metrics(
 
     per_class = {}
     for idx, name in idx_to_class.items():
-        per_class[name] = {
+        class_metrics = {
             "precision": float(precision[idx]),
             "recall": float(recall[idx]),
             "f1": float(f1[idx]),
             "support": int(support[idx]),
         }
+        binary_target = (y_true == idx).astype(int)
+        if np.unique(binary_target).size == 2:
+            class_metrics["auroc"] = float(roc_auc_score(binary_target, probs[:, idx]))
+            class_metrics["auprc"] = float(
+                average_precision_score(binary_target, probs[:, idx])
+            )
+        per_class[name] = class_metrics
     metrics["per_class"] = per_class
     metrics["confusion_matrix"] = confusion_matrix(y_true, y_pred, labels=labels).tolist()
     return metrics
@@ -88,4 +95,3 @@ def softmax(logits: np.ndarray) -> np.ndarray:
     logits = logits - logits.max(axis=1, keepdims=True)
     exp = np.exp(logits)
     return exp / exp.sum(axis=1, keepdims=True)
-

@@ -1,0 +1,42 @@
+experiment:
+  name: stage9_real_balanced_softmax_natural_384
+  notes: "Stage 9A Balanced Softmax with natural sampling; locked test disabled."
+
+runtime:
+  deterministic: true
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage8/train_real.csv
+  val_csv: splits/stage8/val_real.csv
+  test_csv: splits/stage8/locked_test_real.csv
+  image_size: 384
+  val_size: 384
+
+model:
+  name: convnext_base.fb_in22k_ft_in1k_384
+  drop_path_rate: 0.2
+
+augmentation:
+  eval:
+    resize: 438
+    center_crop: true
+
+training:
+  epochs: 50
+  batch_size: 32
+  accumulation_steps: 1
+  lr: 0.0001
+  warmup_epochs: 3
+  early_stopping_patience: 10
+  save_last_checkpoint: false
+  checkpoint_include_optimizer: false
+
+imbalance:
+  sampler: none
+  loss: balanced_softmax
+  balanced_softmax: true
+  class_weights: none
+
+evaluation:
+  run_test: false

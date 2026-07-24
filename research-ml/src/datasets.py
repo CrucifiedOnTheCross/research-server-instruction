@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Dataset, Sampler, WeightedRandomSampler
 from torchvision import transforms
 
 from .reproducibility import seed_worker
@@ -20,6 +20,7 @@ class DatasetBundle:
     class_to_idx: dict[str, int]
     idx_to_class: dict[int, str]
     class_counts: dict[str, dict[str, int]]
+    sampling_plan: dict[str, Any]
 
 
 class CsvImageDataset(Dataset):
@@ -30,6 +31,7 @@ class CsvImageDataset(Dataset):
         image_col: str,
         label_col: str,
         synthetic_col: str,
+        sample_weight_col: str,
         class_to_idx: dict[str, int],
         transform: Any,
         allow_synthetic: bool = True,
@@ -39,11 +41,16 @@ class CsvImageDataset(Dataset):
         self.image_col = image_col
         self.label_col = label_col
         self.synthetic_col = synthetic_col
+        self.sample_weight_col = sample_weight_col
         self.class_to_idx = class_to_idx
         self.transform = transform
         self.frame = pd.read_csv(self.csv_path)
         if synthetic_col not in self.frame.columns:
             self.frame[synthetic_col] = 0
+        if sample_weight_col not in self.frame.columns:
+            self.frame[sample_weight_col] = 1.0
+        if (self.frame[sample_weight_col].astype(float) <= 0).any():
+            raise ValueError(f"{self.csv_path}: {sample_weight_col} must contain positive values")
         if not allow_synthetic:
             self.frame = self.frame[self.frame[synthetic_col].astype(int) == 0].reset_index(drop=True)
 
@@ -65,6 +72,7 @@ class CsvImageDataset(Dataset):
             "label_name": label_name,
             "path": str(image_path),
             "is_synthetic": int(row.get(self.synthetic_col, 0)),
+            "sample_weight": float(row.get(self.sample_weight_col, 1.0)),
         }
 
 
@@ -131,8 +139,43 @@ def count_classes(dataset: CsvImageDataset) -> dict[str, int]:
     return {label: int(counts.get(label, 0)) for label in dataset.class_to_idx}
 
 
-def make_weighted_sampler(dataset: CsvImageDataset) -> WeightedRandomSampler:
-    labels = dataset.frame[dataset.label_col].astype(str).map(dataset.class_to_idx).to_numpy()
+class ClassBalancedUndersampler(Sampler[int]):
+    def __init__(self, labels: np.ndarray, seed: int) -> None:
+        self.seed = int(seed)
+        self.epoch = 0
+        self.class_indices = {
+            int(label): np.flatnonzero(labels == label)
+            for label in sorted(np.unique(labels).tolist())
+        }
+        if not self.class_indices or any(len(indices) == 0 for indices in self.class_indices.values()):
+            raise ValueError("Undersampling requires at least one sample for every observed class")
+        self.samples_per_class = min(len(indices) for indices in self.class_indices.values())
+
+    def set_epoch(self, epoch: int) -> None:
+        self.epoch = int(epoch)
+
+    def __iter__(self):
+        rng = np.random.default_rng(self.seed + self.epoch)
+        selected = [
+            rng.choice(indices, size=self.samples_per_class, replace=False)
+            for indices in self.class_indices.values()
+        ]
+        indices = np.concatenate(selected)
+        rng.shuffle(indices)
+        return iter(indices.tolist())
+
+    def __len__(self) -> int:
+        return self.samples_per_class * len(self.class_indices)
+
+
+def dataset_labels(dataset: CsvImageDataset) -> np.ndarray:
+    return dataset.frame[dataset.label_col].astype(str).map(dataset.class_to_idx).to_numpy()
+
+
+def make_weighted_sampler(
+    dataset: CsvImageDataset, generator: torch.Generator
+) -> WeightedRandomSampler:
+    labels = dataset_labels(dataset)
     counts = np.bincount(labels, minlength=len(dataset.class_to_idx))
     weights = 1.0 / np.maximum(counts, 1)
     sample_weights = weights[labels]
@@ -140,7 +183,36 @@ def make_weighted_sampler(dataset: CsvImageDataset) -> WeightedRandomSampler:
         weights=torch.as_tensor(sample_weights, dtype=torch.double),
         num_samples=len(sample_weights),
         replacement=True,
+        generator=generator,
     )
+
+
+def make_sampling_plan(
+    dataset: CsvImageDataset,
+    sampler_name: str,
+    sampler: Sampler[int] | None,
+) -> dict[str, Any]:
+    counts = count_classes(dataset)
+    labels = list(dataset.class_to_idx)
+    if sampler_name == "weighted":
+        expected = {label: len(dataset) / len(labels) for label in labels}
+        replacement = True
+    elif sampler_name == "undersample":
+        if not isinstance(sampler, ClassBalancedUndersampler):
+            raise TypeError("undersample plan requires ClassBalancedUndersampler")
+        expected = {label: sampler.samples_per_class for label in labels}
+        replacement = False
+    else:
+        expected = {label: counts[label] for label in labels}
+        replacement = False
+    return {
+        "sampler": sampler_name,
+        "replacement": replacement,
+        "dataset_rows": len(dataset),
+        "samples_per_epoch": len(sampler) if sampler is not None else len(dataset),
+        "dataset_class_counts": counts,
+        "expected_class_samples_per_epoch": expected,
+    }
 
 
 def make_dataloaders(config: dict[str, Any]) -> DatasetBundle:
@@ -157,6 +229,7 @@ def make_dataloaders(config: dict[str, Any]) -> DatasetBundle:
             data["image_col"],
             data["label_col"],
             data["synthetic_col"],
+            data["sample_weight_col"],
             class_to_idx,
             build_transforms(config, train=True),
             allow_synthetic=True,
@@ -167,6 +240,7 @@ def make_dataloaders(config: dict[str, Any]) -> DatasetBundle:
             data["image_col"],
             data["label_col"],
             data["synthetic_col"],
+            data["sample_weight_col"],
             class_to_idx,
             build_transforms(config, train=False),
             allow_synthetic=bool(data["allow_synthetic_in_eval"]),
@@ -177,6 +251,7 @@ def make_dataloaders(config: dict[str, Any]) -> DatasetBundle:
             data["image_col"],
             data["label_col"],
             data["synthetic_col"],
+            data["sample_weight_col"],
             class_to_idx,
             build_transforms(config, train=False),
             allow_synthetic=bool(data["allow_synthetic_in_eval"]),
@@ -186,12 +261,24 @@ def make_dataloaders(config: dict[str, Any]) -> DatasetBundle:
     generator = torch.Generator()
     generator.manual_seed(int(runtime["seed"]))
     loaders: dict[str, DataLoader] = {}
+    train_sampling_plan: dict[str, Any] | None = None
     for split, dataset in datasets.items():
         sampler = None
         shuffle = split == "train"
-        if split == "train" and config["imbalance"]["sampler"] == "weighted":
-            sampler = make_weighted_sampler(dataset)
-            shuffle = False
+        if split == "train":
+            sampler_name = str(config["imbalance"]["sampler"])
+            if sampler_name == "weighted":
+                sampler = make_weighted_sampler(dataset, generator)
+                shuffle = False
+            elif sampler_name == "undersample":
+                sampler = ClassBalancedUndersampler(
+                    dataset_labels(dataset),
+                    seed=int(runtime["seed"]),
+                )
+                shuffle = False
+            elif sampler_name != "none":
+                raise ValueError(f"Unknown sampler: {sampler_name}")
+            train_sampling_plan = make_sampling_plan(dataset, sampler_name, sampler)
         loaders[split] = DataLoader(
             dataset,
             batch_size=int(config["training"]["batch_size"]),
@@ -206,4 +293,12 @@ def make_dataloaders(config: dict[str, Any]) -> DatasetBundle:
         )
 
     class_counts = {split: count_classes(dataset) for split, dataset in datasets.items()}
-    return DatasetBundle(loaders=loaders, class_to_idx=class_to_idx, idx_to_class=idx_to_class, class_counts=class_counts)
+    if train_sampling_plan is None:
+        raise RuntimeError("Training sampling plan was not created")
+    return DatasetBundle(
+        loaders=loaders,
+        class_to_idx=class_to_idx,
+        idx_to_class=idx_to_class,
+        class_counts=class_counts,
+        sampling_plan=train_sampling_plan,
+    )

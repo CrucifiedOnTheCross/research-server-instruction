@@ -25,6 +25,7 @@ data:
   image_col: image_path
   label_col: label
   synthetic_col: is_synthetic
+  sample_weight_col: sample_weight
   class_map: null
   image_size: 224
   val_size: 224
@@ -48,6 +49,7 @@ augmentation:
 model:
   name: convnext_tiny.fb_in22k_ft_in1k
   pretrained: true
+  initial_checkpoint: null
   drop_rate: 0.0
   drop_path_rate: 0.1
 
@@ -67,6 +69,9 @@ training:
   monitor_mode: max
   save_last_checkpoint: true
   checkpoint_include_optimizer: true
+  classifier_only: false
+  reinitialize_classifier: false
+  use_sample_weights: false
   synthetic_weight: 1.0
   synthetic_weight_per_class: null
 

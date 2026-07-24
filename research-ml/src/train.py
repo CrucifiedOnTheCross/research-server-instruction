@@ -20,7 +20,7 @@ from .datasets import make_dataloaders
 from .logging_utils import append_csv, append_jsonl, setup_logging, write_json
 from .losses import build_loss
 from .metrics import compute_metrics, softmax
-from .models import create_model
+from .models import configure_classifier_only, create_model, load_initial_checkpoint
 from .reproducibility import collect_environment, set_seed
 
 
@@ -57,11 +57,14 @@ def autocast_dtype(config: dict[str, Any]) -> torch.dtype | None:
 
 def make_optimizer(config: dict[str, Any], model: nn.Module) -> torch.optim.Optimizer:
     train = config["training"]
+    parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    if not parameters:
+        raise ValueError("Model has no trainable parameters")
     if train["optimizer"] == "adamw":
-        return torch.optim.AdamW(model.parameters(), lr=float(train["lr"]), weight_decay=float(train["weight_decay"]))
+        return torch.optim.AdamW(parameters, lr=float(train["lr"]), weight_decay=float(train["weight_decay"]))
     if train["optimizer"] == "sgd":
         return torch.optim.SGD(
-            model.parameters(),
+            parameters,
             lr=float(train["lr"]),
             momentum=0.9,
             weight_decay=float(train["weight_decay"]),
@@ -99,7 +102,14 @@ def train_one_epoch(
     epoch: int,
     synthetic_weight_by_class: torch.Tensor | None = None,
 ) -> dict[str, float]:
-    model.train()
+    if bool(config["training"].get("classifier_only", False)):
+        model.eval()
+        model_for_classifier = model._orig_mod if hasattr(model, "_orig_mod") else model
+        model_for_classifier.get_classifier().train()
+    else:
+        model.train()
+    if hasattr(loader.sampler, "set_epoch"):
+        loader.sampler.set_epoch(epoch)
     dtype = autocast_dtype(config)
     total_loss = 0.0
     total_examples = 0
@@ -108,7 +118,12 @@ def train_one_epoch(
 
     progress = tqdm(loader, desc=f"train {epoch}", leave=False)
     synthetic_weight = float(config["training"].get("synthetic_weight", 1.0))
-    use_weighting = synthetic_weight != 1.0 or synthetic_weight_by_class is not None
+    use_sample_weights = bool(config["training"].get("use_sample_weights", False))
+    use_weighting = (
+        synthetic_weight != 1.0
+        or synthetic_weight_by_class is not None
+        or use_sample_weights
+    )
     for step, batch in enumerate(progress, start=1):
         images = batch["image"].to(device, non_blocking=True)
         targets = batch["target"].to(device, non_blocking=True)
@@ -120,11 +135,17 @@ def train_one_epoch(
             loss_raw = criterion(logits, targets)
             if use_weighting:
                 is_synthetic = batch["is_synthetic"].to(device, non_blocking=True).float()
+                weights = batch["sample_weight"].to(device, non_blocking=True).float()
                 if synthetic_weight_by_class is not None:
                     class_weights = synthetic_weight_by_class.to(device=device, dtype=is_synthetic.dtype)[targets]
                 else:
                     class_weights = torch.full_like(is_synthetic, synthetic_weight)
-                weights = torch.where(is_synthetic > 0, class_weights, torch.ones_like(is_synthetic))
+                synthetic_weights = torch.where(
+                    is_synthetic > 0,
+                    class_weights,
+                    torch.ones_like(is_synthetic),
+                )
+                weights = weights * synthetic_weights
                 loss = (loss_raw * weights).sum() / weights.sum().clamp_min(1.0)
             else:
                 loss = loss_raw.mean() if loss_raw.ndim > 0 else loss_raw
@@ -204,6 +225,7 @@ def evaluate(
     }
     for idx, name in idx_to_class.items():
         rows[f"prob_{name}"] = probs[:, idx]
+        rows[f"logit_{name}"] = logits_np[:, idx]
     predictions = pd.DataFrame(rows)
     return metrics, predictions
 
@@ -279,9 +301,38 @@ def main() -> None:
     bundle = make_dataloaders(config)
     write_json(run_dir / "class_to_idx.json", bundle.class_to_idx)
     write_json(run_dir / "class_counts.json", bundle.class_counts)
+    write_json(run_dir / "sampling_plan.json", bundle.sampling_plan)
     logger.info("Class counts: %s", bundle.class_counts)
+    logger.info("Sampling plan: %s", bundle.sampling_plan)
 
-    model = create_model(config, num_classes=len(bundle.class_to_idx)).to(device)
+    model = create_model(config, num_classes=len(bundle.class_to_idx))
+    initialization = load_initial_checkpoint(model, config["model"].get("initial_checkpoint"))
+    trainable_parameters: list[str] = [
+        name for name, parameter in model.named_parameters() if parameter.requires_grad
+    ]
+    if bool(config["training"].get("classifier_only", False)):
+        trainable_parameters = configure_classifier_only(
+            model,
+            num_classes=len(bundle.class_to_idx),
+            reinitialize_classifier=bool(
+                config["training"].get("reinitialize_classifier", False)
+            ),
+        )
+    initialization.update(
+        {
+            "classifier_only": bool(config["training"].get("classifier_only", False)),
+            "reinitialize_classifier": bool(
+                config["training"].get("reinitialize_classifier", False)
+            ),
+            "trainable_parameter_count": sum(
+                parameter.numel() for parameter in model.parameters() if parameter.requires_grad
+            ),
+            "total_parameter_count": sum(parameter.numel() for parameter in model.parameters()),
+        }
+    )
+    write_json(run_dir / "model_initialization.json", initialization)
+    write_json(run_dir / "trainable_parameters.json", trainable_parameters)
+    model = model.to(device)
     if bool(config["runtime"]["channels_last"]):
         model = model.to(memory_format=torch.channels_last)
     if bool(config["runtime"]["compile"]) and hasattr(torch, "compile"):
@@ -302,7 +353,13 @@ def main() -> None:
         config,
         class_counts_for_loss(bundle),
         device,
-        reduction="none" if synthetic_weight != 1.0 or synthetic_weight_by_class is not None else "mean",
+        reduction=(
+            "none"
+            if synthetic_weight != 1.0
+            or synthetic_weight_by_class is not None
+            or bool(config["training"].get("use_sample_weights", False))
+            else "mean"
+        ),
     )
     eval_criterion = build_loss(config, class_counts_for_loss(bundle), device, reduction="mean")
     optimizer = make_optimizer(config, model)
@@ -314,6 +371,7 @@ def main() -> None:
     monitor = str(config["training"]["monitor"])
     mode = str(config["training"]["monitor_mode"])
     best_metric = -math.inf if mode == "max" else math.inf
+    best_epoch: int | None = None
     bad_epochs = 0
     start = time.time()
 
@@ -345,6 +403,7 @@ def main() -> None:
         improved = current > best_metric if mode == "max" else current < best_metric
         if improved:
             best_metric = current
+            best_epoch = epoch
             bad_epochs = 0
             save_checkpoint(
                 run_dir / "best.pt",
@@ -407,6 +466,7 @@ def main() -> None:
         run_dir / "summary.json",
         {
             "best_metric": best_metric,
+            "best_epoch": best_epoch,
             "elapsed_seconds": elapsed,
             "test_evaluated": bool(config["evaluation"].get("run_test", True)),
             "test": test_metrics,
