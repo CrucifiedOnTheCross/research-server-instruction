@@ -223,3 +223,56 @@ data-budget baseline. Он не интерпретируется как compute-
 Любое изменение sampler, loss, source replay, calibration, endpoint, seed set,
 split или decision rule сначала добавляется в этот файл с датой и причиной, а
 затем реализуется в коде.
+
+## Журнал реализации и запуска
+
+### 2026-07-24: Stage 9A controls
+
+Коммит: `360a8c2`.
+
+Реализованы и проверены:
+
+- deterministic class-balanced undersampler без replacement;
+- row-level sample weights;
+- source-matched replay builder;
+- checkpoint initialization и classifier-only cRT;
+- переинициализация classifier head;
+- raw logits и per-class AUROC/AUPRC;
+- `sampling_plan.json`, `model_initialization.json`,
+  `trainable_parameters.json`;
+- семь серверных unit tests и CUDA cRT forward.
+
+Replay audit:
+
+- real rows: `7228`;
+- replay rows: `240`;
+- `80` rows для каждого `mel`, `akiec`, `bkl`;
+- unique source images: `203`;
+- maximum source reuse: `3`;
+- replay sample weight: `0.5`.
+
+### 2026-07-24: Stage 9B instrumentation
+
+Коммит: `885c894`.
+
+Добавлены group-held-out exploratory temperature scaling, melanoma offsets и
+fixed-specificity operating points. Locked test этим инструментом не читается.
+
+### Первый structured result
+
+`stage9_real_ce_undersample_384`, seed `42`:
+
+- best epoch: `10`;
+- elapsed: `149.4 s`;
+- macro F1: `0.5673`;
+- balanced accuracy: `0.6899`;
+- MCC: `0.4092`;
+- ECE: `0.1188`;
+- mel precision/recall/F1: `0.2413 / 0.6294 / 0.3488`;
+- macro OVR AUROC/AUPRC: `0.9057 / 0.6678`;
+- locked test: not evaluated.
+
+Это промежуточный screening signal. Он не интерпретируется до завершения трех
+seed. Низкие macro F1 и MCC согласуются с потерей head-class diversity: за
+эпоху undersampling использует `567` уникальных изображений (`81` на класс)
+вместо `7228` real rows.
