@@ -13,6 +13,7 @@ from torch import nn
 from src.datasets import ClassBalancedUndersampler, CsvImageDataset
 from src.metrics import compute_metrics
 from src.models import configure_classifier_only
+from tools.calibrate_stage9_predictions import fit_temperature, group_calibration_split
 from tools.make_source_matched_replay import build_source_replay
 
 
@@ -144,6 +145,23 @@ class Stage9ControlTests(unittest.TestCase):
         metrics = compute_metrics(logits, targets, {0: "mel", 1: "nv"}, ece_bins=5)
         self.assertEqual(metrics["per_class"]["mel"]["auroc"], 1.0)
         self.assertEqual(metrics["per_class"]["mel"]["auprc"], 1.0)
+
+    def test_calibration_split_keeps_groups_disjoint(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "group_id": [f"group_{index // 2}" for index in range(24)],
+            }
+        )
+        targets = np.asarray([(index // 2) % 2 for index in range(24)])
+        calibration, evaluation = group_calibration_split(frame, targets, seed=11)
+        calibration_groups = set(frame.iloc[calibration]["group_id"])
+        evaluation_groups = set(frame.iloc[evaluation]["group_id"])
+        self.assertFalse(calibration_groups & evaluation_groups)
+
+    def test_temperature_fit_returns_positive_value(self) -> None:
+        logits = np.asarray([[3.0, 0.0], [0.0, 3.0], [2.0, 0.0], [0.0, 2.0]])
+        targets = np.asarray([0, 1, 0, 1])
+        self.assertGreater(fit_temperature(logits, targets), 0.0)
 
 
 if __name__ == "__main__":

@@ -158,6 +158,16 @@ Locked test не вычисляется на screening.
 
 Confirmatory calibration переносится внутрь outer group-aware CV.
 
+Реализация:
+
+- `tools/calibrate_stage9_predictions.py`;
+- `scripts/run_stage9_calibration.sh`;
+- scalar temperature минимизирует calibration NLL;
+- melanoma logit offset выбирается отдельно по macro F1, MCC и mel-F1;
+- operating points оценивают melanoma sensitivity при specificity `0.90` и
+  `0.95`;
+- calibration/evaluation assignments сохраняются по `group_id`.
+
 ## Stage 9C: geometry-dose experiment
 
 После Stage 9A создаются равные по размеру synthetic strata:
