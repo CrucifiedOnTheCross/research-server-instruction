@@ -110,7 +110,7 @@ If corrected off-the-shelf SD 1.5 still fails these criteria, the next generator
 
 ### S8-H1: artifact-free train-only generation
 
-- Status: running
+- Status: completed
 - Date: 2026-07-23
 - Code commits: `f33b52c`, `47ea4e8`
 - Observation: the old synthetic pool had near-black letterbox borders that were absent from real images, and a real-vs-synthetic detector separated the domains almost perfectly.
@@ -126,9 +126,9 @@ If corrected off-the-shelf SD 1.5 still fails these criteria, the next generator
 - Leakage safeguards: validation and locked-test source groups cannot appear in generation; locked-test evaluation is disabled during screening.
 - Predefined success criterion: the selected synthetic policy must improve five-seed validation macro F1 and MCC over both real-only controls without a material loss in balanced accuracy or worst-class recall.
 - Structured artifacts: `outputs/reports/stage8_artifact_audit`, `outputs/reports/stage8_dino_geometry`, `outputs/reports/stage8_multiseed` and per-run resolved configs/predictions.
-- Current result: pipeline launched; final scientific decision is pending structured multi-seed results.
-- Decision: pending.
-- Follow-up hypothesis: if corrected SD 1.5 remains ineffective, test a train-only dermoscopy LoRA while freezing the classifier and evaluation protocol.
+- Current result: all four screening arms completed for seeds 42-46. The corrected synthetic arm did not improve mean validation macro F1 or MCC over the strongest real-only control. Full statistical analysis: `stage8_full_statistical_analysis_and_article_plan_2026-07-24.md`.
+- Decision: reject the corrected off-the-shelf SD 1.5 plus DINOv2 top-k policy as a method for general performance improvement. Retain the increase in `mel` recall as a class-specific trade-off hypothesis because it coincides with lower `mel` precision/F1 and lower overall MCC.
+- Follow-up hypothesis: compare strict-only DINOv2 selection with the current strict-plus-top-k fallback; if utility remains absent, test a train-only dermoscopy LoRA while freezing the classifier and evaluation protocol.
 
 #### Runtime verification: 2026-07-23 10:18
 
@@ -161,6 +161,27 @@ If corrected off-the-shelf SD 1.5 still fails these criteria, the next generator
 - Follow-up check: compare the selected-pool PRDC metrics with downstream
   five-seed utility. If utility remains absent, test whether strict-only selection
   performs better than filling every class to a fixed top-k of 80.
+
+#### Screening result: 2026-07-23 19:23
+
+All 20 validation-screening runs completed. The locked test remained disabled.
+Values are mean plus/minus sample standard deviation over seeds 42-46.
+
+| Arm | Macro F1 | Balanced accuracy | MCC | ECE | Worst recall | Mel recall |
+|---|---:|---:|---:|---:|---:|---:|
+| Real CE natural | 0.7454 +/- 0.0157 | 0.7346 +/- 0.0231 | 0.6518 +/- 0.0280 | 0.1495 +/- 0.0286 | 0.4873 +/- 0.0530 | 0.5175 +/- 0.0808 |
+| Real CE weighted | **0.7653 +/- 0.0230** | **0.7596 +/- 0.0291** | 0.6404 +/- 0.0233 | 0.1592 +/- 0.0145 | **0.5955 +/- 0.0671** | 0.5986 +/- 0.0690 |
+| Real Logit Adjustment | 0.7328 +/- 0.0141 | 0.7457 +/- 0.0263 | 0.6246 +/- 0.0123 | 0.1756 +/- 0.0180 | 0.5481 +/- 0.0794 | 0.5986 +/- 0.0704 |
+| Synthetic + DINO | 0.7472 +/- 0.0142 | 0.7493 +/- 0.0202 | 0.6028 +/- 0.0327 | 0.1682 +/- 0.0302 | 0.5864 +/- 0.0842 | **0.6406 +/- 0.0887** |
+
+Relative to real CE weighted, synthetic + DINO changed mean macro F1 by
+`-0.0181`, balanced accuracy by `-0.0103`, MCC by `-0.0376` and `mel` recall
+by `+0.0420`. It beat weighted CE by macro F1 in only one of five paired seeds.
+The predefined advancement criterion was therefore not met.
+
+The synthetic arm should not be presented as an overall improvement. Its higher
+`mel` recall came with lower mean `mel` precision (`0.3739` versus `0.4433`) and
+lower `mel` F1 (`0.4648` versus `0.5068`) than real CE weighted.
 
 ### Engineering changes
 

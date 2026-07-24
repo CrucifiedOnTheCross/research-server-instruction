@@ -217,6 +217,21 @@ bash scripts/start_stage8_container.sh
 Полное научное обоснование и критерии принятия решения:
 `docs/stage8_methodology_repair_and_screening.md`.
 
+Сводный анализ Stage 1-8 и оценка готовности статьи для «Компьютерной оптики»:
+`docs/experiment_results_and_computer_optics_readiness_2026-07-24.md`.
+
+Полный статистический аудит Stage 8, проверка пороговой эквивалентности,
+сравнение с oversampling и план Stage 9:
+`docs/stage8_full_statistical_analysis_and_article_plan_2026-07-24.md`.
+
+Конспект современной литературы, использованной при интерпретации и
+проектировании следующего этапа:
+`docs/literature_update_synthetic_utility_and_long_tail_2026-07-24.md`.
+
 Обязательный порядок фиксации гипотез, изменений кода, проверок, результатов и
 использованной литературы:
 `docs/research_change_protocol.md`.
+
+Пайплайн для подготовки evidence pack и LaTeX-черновика статьи под журнал
+«Компьютерная оптика»:
+`docs/computer_optics_article_pipeline.md`.
