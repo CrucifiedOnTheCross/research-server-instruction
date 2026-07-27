@@ -50,6 +50,7 @@ model:
   name: convnext_tiny.fb_in22k_ft_in1k
   pretrained: true
   initial_checkpoint: null
+  img_size: null
   drop_rate: 0.0
   drop_path_rate: 0.1
 
@@ -60,6 +61,7 @@ training:
   optimizer: adamw
   lr: 0.0003
   weight_decay: 0.05
+  layer_decay: 1.0
   scheduler: cosine
   warmup_epochs: 3
   min_lr: 0.000001
@@ -69,6 +71,10 @@ training:
   monitor_mode: max
   save_last_checkpoint: true
   checkpoint_include_optimizer: true
+  label_smoothing: 0.0
+  model_ema: false
+  model_ema_decay: 0.9999
+  model_ema_warmup: true
   classifier_only: false
   reinitialize_classifier: false
   use_sample_weights: false

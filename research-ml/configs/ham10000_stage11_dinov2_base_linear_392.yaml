@@ -1,0 +1,48 @@
+experiment:
+  name: stage11_real_dinov2_base_linear_392
+  notes: "Stage 11 representation diagnostic: frozen DINOv2 ViT-B/14 linear probe on real data."
+
+runtime:
+  deterministic: true
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage8/train_real.csv
+  val_csv: splits/stage8/val_real.csv
+  test_csv: splits/stage8/locked_test_real.csv
+  image_size: 392
+  val_size: 392
+
+model:
+  name: vit_base_patch14_dinov2.lvd142m
+  img_size: 392
+  drop_path_rate: 0.0
+
+augmentation:
+  eval:
+    resize: 448
+    center_crop: true
+
+training:
+  epochs: 40
+  batch_size: 64
+  accumulation_steps: 1
+  lr: 0.001
+  weight_decay: 0.0
+  layer_decay: 1.0
+  warmup_epochs: 2
+  early_stopping_patience: 10
+  label_smoothing: 0.0
+  model_ema: false
+  classifier_only: true
+  reinitialize_classifier: true
+  save_last_checkpoint: false
+  checkpoint_include_optimizer: false
+
+imbalance:
+  sampler: none
+  loss: cross_entropy
+  class_weights: none
+
+evaluation:
+  run_test: false

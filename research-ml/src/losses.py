@@ -62,19 +62,37 @@ def class_weight_tensor(strategy: str, class_counts: torch.Tensor) -> torch.Tens
     return weights / weights.mean()
 
 
-def build_loss(config: dict[str, Any], class_counts: list[int], device: torch.device, reduction: str = "mean") -> nn.Module:
+def build_loss(
+    config: dict[str, Any],
+    class_counts: list[int],
+    device: torch.device,
+    reduction: str = "mean",
+    label_smoothing: float = 0.0,
+) -> nn.Module:
     imbalance = config["imbalance"]
+    if not 0.0 <= label_smoothing < 1.0:
+        raise ValueError("label_smoothing must be in [0, 1)")
     counts = torch.tensor(class_counts, dtype=torch.float32, device=device)
     if bool(imbalance.get("balanced_softmax", False)) or imbalance["loss"] == "balanced_softmax":
+        if label_smoothing > 0:
+            raise ValueError("label_smoothing is currently supported only with cross_entropy")
         return BalancedSoftmaxLoss(counts, reduction=reduction).to(device)
     if float(imbalance.get("logit_adjustment_tau", 0.0)) > 0 or imbalance["loss"] == "logit_adjustment":
+        if label_smoothing > 0:
+            raise ValueError("label_smoothing is currently supported only with cross_entropy")
         tau = float(imbalance.get("logit_adjustment_tau", 1.0))
         return LogitAdjustedCELoss(counts, tau=tau, reduction=reduction).to(device)
     weights = class_weight_tensor(imbalance.get("class_weights", "none"), counts)
     if weights is not None:
         weights = weights.to(device)
     if imbalance["loss"] == "focal":
+        if label_smoothing > 0:
+            raise ValueError("label_smoothing is currently supported only with cross_entropy")
         return FocalLoss(gamma=float(imbalance["focal_gamma"]), weight=weights, reduction=reduction).to(device)
     if imbalance["loss"] == "cross_entropy":
-        return nn.CrossEntropyLoss(weight=weights, reduction=reduction).to(device)
+        return nn.CrossEntropyLoss(
+            weight=weights,
+            reduction=reduction,
+            label_smoothing=label_smoothing,
+        ).to(device)
     raise ValueError(f"Unknown loss: {imbalance['loss']}")

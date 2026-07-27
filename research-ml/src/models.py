@@ -9,12 +9,16 @@ from torch import nn
 
 def create_model(config: dict[str, Any], num_classes: int) -> nn.Module:
     model_config = config["model"]
+    model_kwargs: dict[str, Any] = {}
+    if model_config.get("img_size") is not None:
+        model_kwargs["img_size"] = int(model_config["img_size"])
     return timm.create_model(
         model_config["name"],
         pretrained=bool(model_config["pretrained"]),
         num_classes=num_classes,
         drop_rate=float(model_config["drop_rate"]),
         drop_path_rate=float(model_config["drop_path_rate"]),
+        **model_kwargs,
     )
 
 

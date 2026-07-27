@@ -240,6 +240,10 @@ source-matched replay и calibration:
 матрица и decision rules Stage 10:
 `docs/stage10_literature_and_geometry_protocol.md`.
 
+Условный протокол квалификации baseline Stage 11 с ConvNeXt-S/B, DINOv2
+linear/full controls и формальным launch gate, закрытым до анализа Stage 10:
+`docs/stage11_baseline_qualification_protocol.md`.
+
 Обязательный порядок фиксации гипотез, изменений кода, проверок, результатов и
 использованной литературы:
 `docs/research_change_protocol.md`.

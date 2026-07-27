@@ -10,8 +10,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
+from timm.optim import create_optimizer_v2
+from timm.utils import ModelEmaV3
 from torch import nn
-from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR, LinearLR, SequentialLR
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -60,6 +62,21 @@ def make_optimizer(config: dict[str, Any], model: nn.Module) -> torch.optim.Opti
     parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
     if not parameters:
         raise ValueError("Model has no trainable parameters")
+    layer_decay = float(train.get("layer_decay", 1.0))
+    if not 0.0 < layer_decay <= 1.0:
+        raise ValueError("training.layer_decay must be in (0, 1]")
+    if layer_decay < 1.0:
+        optimizer = create_optimizer_v2(
+            model,
+            opt=str(train["optimizer"]),
+            lr=float(train["lr"]),
+            weight_decay=float(train["weight_decay"]),
+            momentum=0.9,
+            layer_decay=layer_decay,
+        )
+        for group in optimizer.param_groups:
+            group["lr"] = float(train["lr"]) * float(group.get("lr_scale", 1.0))
+        return optimizer
     if train["optimizer"] == "adamw":
         return torch.optim.AdamW(parameters, lr=float(train["lr"]), weight_decay=float(train["weight_decay"]))
     if train["optimizer"] == "sgd":
@@ -73,12 +90,38 @@ def make_optimizer(config: dict[str, Any], model: nn.Module) -> torch.optim.Opti
     raise ValueError(f"Unknown optimizer: {train['optimizer']}")
 
 
+def optimizer_group_metadata(optimizer: torch.optim.Optimizer) -> list[dict[str, Any]]:
+    base_lr = max(float(group["lr"]) for group in optimizer.param_groups)
+    return [
+        {
+            "group_index": index,
+            "parameter_tensors": len(group["params"]),
+            "parameter_count": sum(parameter.numel() for parameter in group["params"]),
+            "lr": float(group["lr"]),
+            "lr_scale": float(group.get("lr_scale", float(group["lr"]) / base_lr if base_lr > 0 else 1.0)),
+            "weight_decay": float(group.get("weight_decay", 0.0)),
+        }
+        for index, group in enumerate(optimizer.param_groups)
+    ]
+
+
 def make_scheduler(config: dict[str, Any], optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRScheduler:
     train = config["training"]
     if train["scheduler"] != "cosine":
         raise ValueError(f"Unknown scheduler: {train['scheduler']}")
     epochs = int(train["epochs"])
     warmup = int(train["warmup_epochs"])
+    if float(train.get("layer_decay", 1.0)) < 1.0:
+        min_factor = float(train["min_lr"]) / float(train["lr"])
+
+        def schedule_factor(epoch: int) -> float:
+            if warmup > 0 and epoch < warmup:
+                return 0.01 + 0.99 * epoch / warmup
+            progress = (epoch - warmup) / max(1, epochs - warmup)
+            progress = min(max(progress, 0.0), 1.0)
+            return min_factor + 0.5 * (1.0 - min_factor) * (1.0 + math.cos(math.pi * progress))
+
+        return LambdaLR(optimizer, lr_lambda=schedule_factor)
     cosine = CosineAnnealingLR(optimizer, T_max=max(1, epochs - warmup), eta_min=float(train["min_lr"]))
     if warmup <= 0:
         return cosine
@@ -101,6 +144,7 @@ def train_one_epoch(
     scaler: torch.amp.GradScaler | None,
     epoch: int,
     synthetic_weight_by_class: torch.Tensor | None = None,
+    model_ema: ModelEmaV3 | None = None,
 ) -> dict[str, float]:
     if bool(config["training"].get("classifier_only", False)):
         model.eval()
@@ -166,6 +210,8 @@ def train_one_epoch(
                 scaler.update()
             else:
                 optimizer.step()
+            if model_ema is not None:
+                model_ema.update(model)
             optimizer.zero_grad(set_to_none=True)
 
         examples = targets.numel()
@@ -248,6 +294,7 @@ def save_checkpoint(
     config: dict[str, Any],
     class_to_idx: dict[str, int],
     include_optimizer: bool,
+    weights_source: str = "online",
 ) -> None:
     model_to_save = model._orig_mod if hasattr(model, "_orig_mod") else model
     checkpoint = {
@@ -256,6 +303,7 @@ def save_checkpoint(
         "best_metric": best_metric,
         "config": config,
         "class_to_idx": class_to_idx,
+        "weights_source": weights_source,
     }
     if include_optimizer:
         checkpoint["optimizer"] = optimizer.state_dict()
@@ -335,6 +383,20 @@ def main() -> None:
     model = model.to(device)
     if bool(config["runtime"]["channels_last"]):
         model = model.to(memory_format=torch.channels_last)
+    use_model_ema = bool(config["training"].get("model_ema", False))
+    if use_model_ema and bool(config["runtime"]["compile"]):
+        raise ValueError("training.model_ema=true is not supported with runtime.compile=true")
+    if float(config["training"].get("layer_decay", 1.0)) < 1.0 and bool(config["runtime"]["compile"]):
+        raise ValueError("training.layer_decay<1 is not supported with runtime.compile=true")
+    model_ema = (
+        ModelEmaV3(
+            model,
+            decay=float(config["training"].get("model_ema_decay", 0.9999)),
+            use_warmup=bool(config["training"].get("model_ema_warmup", True)),
+        )
+        if use_model_ema
+        else None
+    )
     if bool(config["runtime"]["compile"]) and hasattr(torch, "compile"):
         model = torch.compile(model)
 
@@ -360,9 +422,11 @@ def main() -> None:
             or bool(config["training"].get("use_sample_weights", False))
             else "mean"
         ),
+        label_smoothing=float(config["training"].get("label_smoothing", 0.0)),
     )
     eval_criterion = build_loss(config, class_counts_for_loss(bundle), device, reduction="mean")
     optimizer = make_optimizer(config, model)
+    write_json(run_dir / "optimizer_groups.json", optimizer_group_metadata(optimizer))
     scheduler = make_scheduler(config, optimizer)
     dtype = autocast_dtype(config)
     scaler = torch.amp.GradScaler("cuda") if dtype == torch.float16 and device.type == "cuda" else None
@@ -386,11 +450,26 @@ def main() -> None:
             scaler,
             epoch,
             synthetic_weight_by_class,
+            model_ema,
         )
-        val_metrics, val_predictions = evaluate(model, bundle.loaders["val"], eval_criterion, device, config, bundle.idx_to_class)
+        selection_model = model_ema.module if model_ema is not None else model
+        val_metrics, val_predictions = evaluate(
+            selection_model,
+            bundle.loaders["val"],
+            eval_criterion,
+            device,
+            config,
+            bundle.idx_to_class,
+        )
         scheduler.step()
 
-        metrics_row = {"epoch": epoch, "lr": optimizer.param_groups[0]["lr"]}
+        group_lrs = [float(group["lr"]) for group in optimizer.param_groups]
+        metrics_row = {
+            "epoch": epoch,
+            "lr": max(group_lrs),
+            "lr_min": min(group_lrs),
+            "lr_max": max(group_lrs),
+        }
         metrics_row.update(flatten_metrics("train", train_metrics))
         metrics_row.update(flatten_metrics("val", val_metrics))
         append_csv(run_dir / "metrics.csv", metrics_row)
@@ -407,7 +486,7 @@ def main() -> None:
             bad_epochs = 0
             save_checkpoint(
                 run_dir / "best.pt",
-                model,
+                selection_model,
                 optimizer,
                 scheduler,
                 epoch,
@@ -415,6 +494,7 @@ def main() -> None:
                 config,
                 bundle.class_to_idx,
                 bool(config["training"].get("checkpoint_include_optimizer", True)),
+                "ema" if model_ema is not None else "online",
             )
             if bool(config["evaluation"]["save_predictions"]):
                 val_predictions.to_csv(run_dir / "val_predictions_best.csv", index=False)
@@ -427,7 +507,7 @@ def main() -> None:
         if bool(config["training"].get("save_last_checkpoint", True)):
             save_checkpoint(
                 run_dir / "last.pt",
-                model,
+                selection_model,
                 optimizer,
                 scheduler,
                 epoch,
@@ -435,6 +515,7 @@ def main() -> None:
                 config,
                 bundle.class_to_idx,
                 bool(config["training"].get("checkpoint_include_optimizer", True)),
+                "ema" if model_ema is not None else "online",
             )
         logger.info("Epoch %03d | val %s=%.6f | best=%.6f | bad_epochs=%d", epoch, monitor, current, best_metric, bad_epochs)
         if bad_epochs >= int(config["training"]["early_stopping_patience"]):
@@ -469,6 +550,7 @@ def main() -> None:
             "best_epoch": best_epoch,
             "elapsed_seconds": elapsed,
             "test_evaluated": bool(config["evaluation"].get("run_test", True)),
+            "weights_source": "ema" if model_ema is not None else "online",
             "test": test_metrics,
         },
     )

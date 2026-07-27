@@ -1,0 +1,22 @@
+status: pending_stage10
+stage10_analysis_reviewed: false
+decision_date: null
+decision_rationale: "Awaiting all Stage 10 runs and paired synthetic-versus-replay analysis."
+
+required_stage10:
+  seeds: [42, 43, 44]
+  strata: [strict_id, aid_radial, ood_far, random_remaining]
+  arms: [synthetic, replay]
+
+stage11:
+  seeds: [42, 43, 44]
+  enabled_configs:
+    - configs/ham10000_stage11_convnext_base_regularized_384.yaml
+    - configs/ham10000_stage11_convnext_small_regularized_384.yaml
+    - configs/ham10000_stage11_dinov2_base_linear_392.yaml
+    - configs/ham10000_stage11_dinov2_base_finetune_392.yaml
+
+decision_rules:
+  retain_stage10_geometry_arm: "Only if its paired lesion-bootstrap interval and multi-seed direction justify follow-up."
+  baseline_promotion: "No candidate is promoted from one seed; use mean, dispersion and lesion-group inference."
+  locked_test: "Keep evaluation.run_test=false during Stage 11 screening."
