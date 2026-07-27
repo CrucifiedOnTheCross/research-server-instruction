@@ -297,3 +297,45 @@ Canonical-signed пакет:
 
 - host `nvidia-smi`: RTX 5080, driver `595.84`, VRAM `16303 MiB`;
 - Docker CUDA smoke test: passed.
+
+## Журнал реализации и запуска
+
+### 2026-07-27: implementation sprint
+
+Коммит: `ca88f1c`.
+
+Проверено:
+
+- восемь server-side unit tests: passed;
+- shell syntax launch scripts: passed;
+- real-data dry-run: 4 strata по 90 строк, overlap `0`;
+- synthetic/replay train size: `7318/7318` для каждой пары;
+- source reuse max: `2`;
+- ConvNeXt Base 384 BF16 forward/backward, batch 32: passed;
+- peak GPU memory allocated/reserved: `11.97 / 12.51 GiB`;
+- synthetic и replay DataLoader: по `7318` samples/epoch и одинаковые class
+  counts.
+
+### 2026-07-27: запуск screening matrix
+
+Контейнер: `research-stage10-geometry`.
+
+Первый run:
+
+`outputs/stage10_synthetic_strict_id_384/20260727-135942_42`.
+
+Начальный structured audit после двух эпох:
+
+- контейнер: running;
+- GPU utilization: `100%`;
+- GPU memory: около `13.7 GiB`;
+- sampling: weighted with replacement;
+- dataset/samples per epoch: `7318/7318`;
+- trainable parameters: `87,573,639`;
+- `best.pt`, `val_metrics_best.json`, `val_predictions_best.csv`,
+  `sampling_plan.json`, `model_initialization.json` созданы;
+- locked test не запускался.
+
+Промежуточные warm-up метрики не используются для научного вывода. Оценка
+выполняется только после завершения matched synthetic/replay runs всех трех
+seed.
