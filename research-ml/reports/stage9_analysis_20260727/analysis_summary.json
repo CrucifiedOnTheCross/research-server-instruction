@@ -1,0 +1,27 @@
+{
+  "artifact_root": "local_artifacts\\stage9_structured_20260727",
+  "experiments": [
+    "stage8_real_ce_natural_384",
+    "stage8_real_ce_weighted_384",
+    "stage8_real_logit_adjust_natural_384",
+    "stage8_synthetic_dino_384",
+    "stage9_real_ce_undersample_384",
+    "stage9_real_balanced_softmax_natural_384",
+    "stage9_source_replay_weighted_384",
+    "stage9_crt_weighted_384"
+  ],
+  "stage9_runs": 12,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "validation_rows": 1280,
+  "validation_groups": 599,
+  "locked_test_evaluated": false,
+  "metric_recompute_max_abs_error": 9.136490516925555e-08,
+  "prediction_alignment_passed": true,
+  "stage9_artifact_integrity_passed": true,
+  "bootstrap_replicates": 5000,
+  "calibration_status": "exploratory; group-held-out diagnostic after validation-based early stopping"
+}

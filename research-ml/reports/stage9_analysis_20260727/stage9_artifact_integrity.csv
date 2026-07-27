@@ -1,0 +1,13 @@
+experiment,seed,run,missing_required_artifacts,calibration_diagnostic_present,test_evaluated,validation_rows,validation_synthetic_rows,metric_recompute_max_abs_error
+stage9_real_ce_undersample_384,42,20260724-084811_42,,True,False,1280,0,1.0293058225196994e-08
+stage9_real_ce_undersample_384,43,20260724-085044_43,,True,False,1280,0,3.0607576972929706e-08
+stage9_real_ce_undersample_384,44,20260724-085655_44,,True,False,1280,0,1.45057419548289e-09
+stage9_real_balanced_softmax_natural_384,42,20260724-085850_42,,True,False,1280,0,3.190146211085043e-08
+stage9_real_balanced_softmax_natural_384,43,20260724-092411_43,,True,False,1280,0,5.551370127476751e-08
+stage9_real_balanced_softmax_natural_384,44,20260724-100700_44,,True,False,1280,0,3.806205572942645e-08
+stage9_source_replay_weighted_384,42,20260724-104154_42,,True,False,1280,0,5.115388201915039e-08
+stage9_source_replay_weighted_384,43,20260724-112654_43,,True,False,1280,0,3.926531480513695e-08
+stage9_source_replay_weighted_384,44,20260724-114310_44,,True,False,1280,0,8.045194899164443e-09
+stage9_crt_weighted_384,42,20260724-120731_42,,True,False,1280,0,1.2556442635647258e-08
+stage9_crt_weighted_384,43,20260724-121334_43,,True,False,1280,0,9.36396657436056e-09
+stage9_crt_weighted_384,44,20260724-122444_44,,True,False,1280,0,2.2625388979014005e-08

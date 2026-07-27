@@ -232,6 +232,10 @@ bash scripts/start_stage8_container.sh
 source-matched replay и calibration:
 `docs/stage9_controlled_utility_protocol.md`.
 
+Итоговый анализ Stage 9, lesion-group bootstrap, calibration diagnostics и
+план причинного geometry-dose эксперимента Stage 10:
+`docs/stage9_results_and_stage10_plan_2026-07-27.md`.
+
 Обязательный порядок фиксации гипотез, изменений кода, проверок, результатов и
 использованной литературы:
 `docs/research_change_protocol.md`.

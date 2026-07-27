@@ -1,0 +1,169 @@
+experiment,method,seed,class,support,auroc,auprc
+stage8_real_ce_natural_384,Real CE natural,42,akiec,42,0.9656127394414955,0.7622027770040283
+stage8_real_ce_natural_384,Real CE natural,42,bcc,65,0.9940234251345362,0.9102979865128631
+stage8_real_ce_natural_384,Real CE natural,42,bkl,140,0.9581390977443609,0.8064368427335235
+stage8_real_ce_natural_384,Real CE natural,42,df,16,0.9891712816455696,0.6375721889943557
+stage8_real_ce_natural_384,Real CE natural,42,mel,143,0.8434968725206192,0.5249983623010375
+stage8_real_ce_natural_384,Real CE natural,42,nv,856,0.9027053760359725,0.9316590423953011
+stage8_real_ce_natural_384,Real CE natural,42,vasc,18,0.9996918471561895,0.9830246913580247
+stage8_real_ce_natural_384,Real CE natural,43,akiec,42,0.9762674051850142,0.8118679262597026
+stage8_real_ce_natural_384,Real CE natural,43,bcc,65,0.9899525166191833,0.8507190874520499
+stage8_real_ce_natural_384,Real CE natural,43,bkl,140,0.947872807017544,0.7853397029915554
+stage8_real_ce_natural_384,Real CE natural,43,df,16,0.992731408227848,0.815756106321839
+stage8_real_ce_natural_384,Real CE natural,43,mel,143,0.8184585862686127,0.5716933587107036
+stage8_real_ce_natural_384,Real CE natural,43,nv,856,0.9008345640098748,0.924057369199307
+stage8_real_ce_natural_384,Real CE natural,43,vasc,18,0.9978429300933263,0.896720945805614
+stage8_real_ce_natural_384,Real CE natural,44,akiec,42,0.9702861758596815,0.7650342673680836
+stage8_real_ce_natural_384,Real CE natural,44,bcc,65,0.9927065527065528,0.872045006412829
+stage8_real_ce_natural_384,Real CE natural,44,bkl,140,0.9382268170426066,0.7923795003992923
+stage8_real_ce_natural_384,Real CE natural,44,df,16,0.9939181170886077,0.7110226651409551
+stage8_real_ce_natural_384,Real CE natural,44,mel,143,0.8061331808033655,0.5757054817928212
+stage8_real_ce_natural_384,Real CE natural,44,nv,856,0.9059524334332568,0.9279875072030395
+stage8_real_ce_natural_384,Real CE natural,44,vasc,18,0.9981510829371368,0.9445132668403109
+stage8_real_ce_weighted_384,Real CE oversampling,42,akiec,42,0.9777867528271406,0.8417087944522588
+stage8_real_ce_weighted_384,Real CE oversampling,42,bcc,65,0.9938081671415004,0.8850246436349074
+stage8_real_ce_weighted_384,Real CE oversampling,42,bkl,140,0.9536998746867168,0.7935063469645488
+stage8_real_ce_weighted_384,Real CE oversampling,42,df,16,0.990654667721519,0.8508673038863112
+stage8_real_ce_weighted_384,Real CE oversampling,42,mel,143,0.8274566242903973,0.540745671363446
+stage8_real_ce_weighted_384,Real CE oversampling,42,nv,856,0.8962374360782931,0.9287512015482885
+stage8_real_ce_weighted_384,Real CE oversampling,42,vasc,18,0.9989434759640782,0.9518035749653397
+stage8_real_ce_weighted_384,Real CE oversampling,43,akiec,42,0.9856527425186552,0.856893482036516
+stage8_real_ce_weighted_384,Real CE oversampling,43,bcc,65,0.9909211775878443,0.8278312184893193
+stage8_real_ce_weighted_384,Real CE oversampling,43,bkl,140,0.9338408521303259,0.7850550139036023
+stage8_real_ce_weighted_384,Real CE oversampling,43,df,16,0.9718651107594938,0.7970916696048181
+stage8_real_ce_weighted_384,Real CE oversampling,43,mel,143,0.8679693217951793,0.5882829115587642
+stage8_real_ce_weighted_384,Real CE oversampling,43,nv,856,0.9079127909539765,0.9361162008652024
+stage8_real_ce_weighted_384,Real CE oversampling,43,vasc,18,0.9993396724775488,0.957397032887229
+stage8_real_ce_weighted_384,Real CE oversampling,44,akiec,42,0.9855373490268482,0.8597545437894771
+stage8_real_ce_weighted_384,Real CE oversampling,44,bcc,65,0.9910161443494777,0.853066077412597
+stage8_real_ce_weighted_384,Real CE oversampling,44,bkl,140,0.9559586466165413,0.7768859818888755
+stage8_real_ce_weighted_384,Real CE oversampling,44,df,16,0.9931269778481013,0.7952356093901047
+stage8_real_ce_weighted_384,Real CE oversampling,44,mel,143,0.8561359484842335,0.5679750514399211
+stage8_real_ce_weighted_384,Real CE oversampling,44,nv,856,0.9028445159583849,0.9372979371581134
+stage8_real_ce_weighted_384,Real CE oversampling,44,vasc,18,0.9986793449550977,0.9391919771821733
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,42,akiec,42,0.9704784983460265,0.8369715031385339
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,42,bcc,65,0.9937195314973093,0.892598110357096
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,42,bkl,140,0.9559649122807017,0.8113055109736673
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,42,df,16,0.9797270569620253,0.7322760160837698
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,42,mel,143,0.829766100214649,0.5745609602020684
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,42,nv,856,0.9016308301005114,0.9288863316906527
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,42,vasc,18,0.9985913012854375,0.9423048220143857
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,43,akiec,42,0.9450342334025694,0.797593179595287
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,43,bcc,65,0.9915352959797404,0.8407171902242623
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,43,bkl,140,0.9387531328320802,0.7563638191624026
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,43,df,16,0.9814082278481013,0.806696227130292
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,43,mel,143,0.8407476428584608,0.48798153801853633
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,43,nv,856,0.9029257957150415,0.9277172530887389
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,43,vasc,18,0.9984152139461172,0.9217361997884276
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,44,akiec,42,0.9672859450726979,0.8002595041624974
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,44,bcc,65,0.9905792972459639,0.8708175013486318
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,44,bkl,140,0.9220018796992482,0.7030303562490016
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,44,df,16,0.9699861550632911,0.6142278464389326
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,44,mel,143,0.8021907731670266,0.4941790959217759
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,44,nv,856,0.8837809689649091,0.9134799717867611
+stage8_real_logit_adjust_natural_384,Real Logit Adjustment,44,vasc,18,0.997666842754006,0.9099759581377229
+stage8_synthetic_dino_384,Synthetic + DINO,42,akiec,42,0.9648819139933842,0.7595657312181655
+stage8_synthetic_dino_384,Synthetic + DINO,42,bcc,65,0.9922886989553656,0.8669229202515877
+stage8_synthetic_dino_384,Synthetic + DINO,42,bkl,140,0.9360808270676692,0.6982409105165791
+stage8_synthetic_dino_384,Synthetic + DINO,42,df,16,0.9835838607594937,0.7628323854794442
+stage8_synthetic_dino_384,Synthetic + DINO,42,mel,143,0.8494996648030949,0.5501709341509681
+stage8_synthetic_dino_384,Synthetic + DINO,42,nv,856,0.8831197099277024,0.9215221192207597
+stage8_synthetic_dino_384,Synthetic + DINO,42,vasc,18,0.9984152139461173,0.9195711079999007
+stage8_synthetic_dino_384,Synthetic + DINO,43,akiec,42,0.9440341564735749,0.8173045449653948
+stage8_synthetic_dino_384,Synthetic + DINO,43,bcc,65,0.9904526748971193,0.8709879764255276
+stage8_synthetic_dino_384,Synthetic + DINO,43,bkl,140,0.9398496240601505,0.7432712330653722
+stage8_synthetic_dino_384,Synthetic + DINO,43,df,16,0.9843255537974684,0.7286823708698709
+stage8_synthetic_dino_384,Synthetic + DINO,43,mel,143,0.8356305084537274,0.5054135974771611
+stage8_synthetic_dino_384,Synthetic + DINO,43,nv,856,0.8841777243872334,0.923141820909568
+stage8_synthetic_dino_384,Synthetic + DINO,43,vasc,18,0.9992516288078888,0.9588405797101451
+stage8_synthetic_dino_384,Synthetic + DINO,44,akiec,42,0.971363181783214,0.7682572330238626
+stage8_synthetic_dino_384,Synthetic + DINO,44,bcc,65,0.9922127255460589,0.8510187549902627
+stage8_synthetic_dino_384,Synthetic + DINO,44,bkl,140,0.9124812030075189,0.7062142957074199
+stage8_synthetic_dino_384,Synthetic + DINO,44,df,16,0.9730023734177216,0.6455045723951974
+stage8_synthetic_dino_384,Synthetic + DINO,44,mel,143,0.8096696619124059,0.501329619248058
+stage8_synthetic_dino_384,Synthetic + DINO,44,nv,856,0.8776808543466761,0.9131800416472278
+stage8_synthetic_dino_384,Synthetic + DINO,44,vasc,18,0.9954657510125022,0.9032877556048287
+stage9_real_ce_undersample_384,Real CE undersampling,42,akiec,42,0.9482652511731672,0.6740914315861899
+stage9_real_ce_undersample_384,Real CE undersampling,42,bcc,65,0.9778157644824312,0.7516450091888675
+stage9_real_ce_undersample_384,Real CE undersampling,42,bkl,140,0.876484962406015,0.586082603510035
+stage9_real_ce_undersample_384,Real CE undersampling,42,df,16,0.9693928006329113,0.5373190418161297
+stage9_real_ce_undersample_384,Real CE undersampling,42,mel,143,0.7433437275125929,0.35788536687682365
+stage9_real_ce_undersample_384,Real CE undersampling,42,nv,856,0.8266096147064009,0.8629957064863467
+stage9_real_ce_undersample_384,Real CE undersampling,42,vasc,18,0.9979309737629865,0.9042369501111331
+stage9_real_ce_undersample_384,Real CE undersampling,43,akiec,42,0.9765174244172627,0.825630770751142
+stage9_real_ce_undersample_384,Real CE undersampling,43,bcc,65,0.9910731244064578,0.8608992142504099
+stage9_real_ce_undersample_384,Real CE undersampling,43,bkl,140,0.9339974937343358,0.731304977705743
+stage9_real_ce_undersample_384,Real CE undersampling,43,df,16,0.9934731012658228,0.7496603772444443
+stage9_real_ce_undersample_384,Real CE undersampling,43,mel,143,0.8400957002540116,0.5205878968831102
+stage9_real_ce_undersample_384,Real CE undersampling,43,nv,856,0.8901125242461647,0.9194293203482242
+stage9_real_ce_undersample_384,Real CE undersampling,43,vasc,18,0.9981070611023067,0.925309800907627
+stage9_real_ce_undersample_384,Real CE undersampling,44,akiec,42,0.9379375336564352,0.6133123387475893
+stage9_real_ce_undersample_384,Real CE undersampling,44,bcc,65,0.9684583729028173,0.6834568151478387
+stage9_real_ce_undersample_384,Real CE undersampling,44,bkl,140,0.8722994987468672,0.5297001126448251
+stage9_real_ce_undersample_384,Real CE undersampling,44,df,16,0.9404667721518988,0.46423816429868536
+stage9_real_ce_undersample_384,Real CE undersampling,44,mel,143,0.7625145303245566,0.3870971082058052
+stage9_real_ce_undersample_384,Real CE undersampling,44,nv,856,0.832891575559866,0.8773305303183572
+stage9_real_ce_undersample_384,Real CE undersampling,44,vasc,18,0.9934847684451488,0.8490061582261429
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,42,akiec,42,0.9520732364028002,0.8173793740845968
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,42,bcc,65,0.9936688825577714,0.8862151686184482
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,42,bkl,140,0.9416353383458648,0.7486646880962022
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,42,df,16,0.9972310126582279,0.8611040868853369
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,42,mel,143,0.8515415982434452,0.5612502430062141
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,42,nv,856,0.8974662757891024,0.9325417197835133
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,42,vasc,18,0.999471737982039,0.9647185774894755
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,43,akiec,42,0.9548715285791215,0.8065100777959752
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,43,bcc,65,0.9928711617600506,0.8875367636426641
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,43,bkl,140,0.9523558897243108,0.7734182352780892
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,43,df,16,0.9928797468354431,0.8167938585907336
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,43,mel,143,0.839769728951787,0.5150573719033331
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,43,nv,856,0.9036779778698643,0.930031563828772
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,43,vasc,18,0.9986793449550977,0.9277005849586497
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,44,akiec,42,0.9769309177629049,0.8348363622555192
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,44,bcc,65,0.9939727761949984,0.9075518918607571
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,44,bkl,140,0.9366353383458647,0.7703817115831151
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,44,df,16,0.987589003164557,0.7301838352619603
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,44,mel,143,0.8082243174591459,0.4944574047484626
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,44,nv,856,0.8982225908129078,0.9247122820800435
+stage9_real_balanced_softmax_natural_384,Real Balanced Softmax,44,vasc,18,0.9976228209191759,0.9467435549525101
+stage9_source_replay_weighted_384,Source-matched replay,42,akiec,42,0.9775367335948919,0.833818952842012
+stage9_source_replay_weighted_384,Source-matched replay,42,bcc,65,0.9946691991136436,0.8893388903087014
+stage9_source_replay_weighted_384,Source-matched replay,42,bkl,140,0.9451848370927318,0.7944847398471295
+stage9_source_replay_weighted_384,Source-matched replay,42,df,16,0.9935225474683544,0.8731309808612441
+stage9_source_replay_weighted_384,Source-matched replay,42,mel,143,0.8232989525865515,0.5232354818698417
+stage9_source_replay_weighted_384,Source-matched replay,42,nv,856,0.896298051490037,0.9275886489961884
+stage9_source_replay_weighted_384,Source-matched replay,42,vasc,18,0.9993396724775488,0.965652557319224
+stage9_source_replay_weighted_384,Source-matched replay,43,akiec,42,0.9836141241633972,0.8368513173967049
+stage9_source_replay_weighted_384,Source-matched replay,43,bcc,65,0.9936435580880025,0.9012402933042062
+stage9_source_replay_weighted_384,Source-matched replay,43,bkl,140,0.9131390977443609,0.6941852918004836
+stage9_source_replay_weighted_384,Source-matched replay,43,df,16,0.9406645569620252,0.6139895093014667
+stage9_source_replay_weighted_384,Source-matched replay,43,mel,143,0.8265156127952962,0.4887308123159368
+stage9_source_replay_weighted_384,Source-matched replay,43,nv,856,0.8787774422500441,0.9173157066865557
+stage9_source_replay_weighted_384,Source-matched replay,43,vasc,18,0.9955978165169925,0.9017710170487947
+stage9_source_replay_weighted_384,Source-matched replay,44,akiec,42,0.9780367720593892,0.7796762549601381
+stage9_source_replay_weighted_384,Source-matched replay,44,bcc,65,0.9926685660018992,0.8827680349862654
+stage9_source_replay_weighted_384,Source-matched replay,44,bkl,140,0.9221491228070176,0.7408469735596572
+stage9_source_replay_weighted_384,Source-matched replay,44,df,16,0.9882318037974683,0.7690996986705942
+stage9_source_replay_weighted_384,Source-matched replay,44,mel,143,0.820838791815045,0.5200787718231965
+stage9_source_replay_weighted_384,Source-matched replay,44,nv,856,0.8883712087815201,0.9169746020390899
+stage9_source_replay_weighted_384,Source-matched replay,44,vasc,18,0.9961260785349533,0.9311266546904663
+stage9_crt_weighted_384,cRT classifier retraining,42,akiec,42,0.9785945072697899,0.8236600096317734
+stage9_crt_weighted_384,cRT classifier retraining,42,bcc,65,0.9932257043368153,0.8942787143570554
+stage9_crt_weighted_384,cRT classifier retraining,42,bkl,140,0.9536372180451128,0.7958945702928791
+stage9_crt_weighted_384,cRT classifier retraining,42,df,16,0.9909018987341772,0.7135546286049587
+stage9_crt_weighted_384,cRT classifier retraining,42,mel,143,0.8615421517796188,0.5875384073904076
+stage9_crt_weighted_384,cRT classifier retraining,42,nv,856,0.9094901692823135,0.940187572504061
+stage9_crt_weighted_384,cRT classifier retraining,42,vasc,18,0.9981510829371368,0.9319954066608602
+stage9_crt_weighted_384,cRT classifier retraining,43,akiec,42,0.9570351565505039,0.8238457428320258
+stage9_crt_weighted_384,cRT classifier retraining,43,bcc,65,0.9903007280785059,0.862630068773358
+stage9_crt_weighted_384,cRT classifier retraining,43,bkl,140,0.9442919799498747,0.7751793621609712
+stage9_crt_weighted_384,cRT classifier retraining,43,df,16,0.9789853639240507,0.7399197804993349
+stage9_crt_weighted_384,cRT classifier retraining,43,mel,143,0.8502069610249029,0.5845900612822488
+stage9_crt_weighted_384,cRT classifier retraining,43,nv,856,0.9010673822958915,0.9365170410491527
+stage9_crt_weighted_384,cRT classifier retraining,43,vasc,18,0.9968744497270646,0.8703130806391677
+stage9_crt_weighted_384,cRT classifier retraining,44,akiec,42,0.9647472882529425,0.8462823340284845
+stage9_crt_weighted_384,cRT classifier retraining,44,bcc,65,0.9931117442228553,0.8804213169383472
+stage9_crt_weighted_384,cRT classifier retraining,44,bkl,140,0.9269078947368422,0.7719107417068363
+stage9_crt_weighted_384,cRT classifier retraining,44,df,16,0.9716673259493671,0.6327589777425302
+stage9_crt_weighted_384,cRT classifier retraining,44,mel,143,0.8492967015394457,0.5909744558889457
+stage9_crt_weighted_384,cRT classifier retraining,44,nv,856,0.9102878129959443,0.9385700639371869
+stage9_crt_weighted_384,cRT classifier retraining,44,vasc,18,0.9872336678992781,0.8397695627958787

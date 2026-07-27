@@ -276,3 +276,23 @@ fixed-specificity operating points. Locked test этим инструменто�
 seed. Низкие macro F1 и MCC согласуются с потерей head-class diversity: за
 эпоху undersampling использует `567` уникальных изображений (`81` на класс)
 вместо `7228` real rows.
+
+## 2026-07-27: итог Stage 9
+
+Все 12 screening runs завершены с exit code 0. Locked test не вычислялся.
+Метрики пересчитаны из `val_predictions_best.csv`, проведены paired comparisons
+и hierarchical bootstrap по seed и целым lesion groups.
+
+Главный результат:
+
+- `Synthetic + DINO` против source-matched replay: delta macro F1 `-0.0006`,
+  95% bootstrap CI `[-0.0536; 0.0518]`;
+- против real oversampling: delta macro F1 `-0.0306`,
+  95% bootstrap CI `[-0.0711; 0.0097]`;
+- synthetic превосходит undersampling, но undersampling теряет большую часть
+  реального head-class diversity;
+- ни одна новая Stage 9 ветка не прошла заранее заданный shortlist;
+- locked test остается закрытым.
+
+Полный анализ, calibration diagnostics, ограничения и план Stage 10:
+`docs/stage9_results_and_stage10_plan_2026-07-27.md`.
