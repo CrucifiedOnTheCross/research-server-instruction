@@ -15,6 +15,7 @@ from src.metrics import compute_metrics
 from src.models import configure_classifier_only
 from tools.calibrate_stage9_predictions import fit_temperature, group_calibration_split
 from tools.make_source_matched_replay import build_source_replay
+from tools.make_stage10_geometry_strata import STRATA, build_outputs
 
 
 class TinyClassifier(nn.Module):
@@ -162,6 +163,67 @@ class Stage9ControlTests(unittest.TestCase):
         logits = np.asarray([[3.0, 0.0], [0.0, 3.0], [2.0, 0.0], [0.0, 2.0]])
         targets = np.asarray([0, 1, 0, 1])
         self.assertGreater(fit_temperature(logits, targets), 0.0)
+
+    def test_stage10_strata_are_equal_dose_disjoint_and_replay_matched(self) -> None:
+        labels = ("mel", "akiec", "bkl")
+        train_rows = []
+        score_rows = []
+        for label_index, label in enumerate(labels):
+            for index in range(24):
+                source_id = f"{label}_real_{index}"
+                source_path = f"raw/{source_id}.jpg"
+                group_id = f"{label}_lesion_{index}"
+                train_rows.append(
+                    {
+                        "image_id": source_id,
+                        "image_path": source_path,
+                        "label": label,
+                        "group_id": group_id,
+                        "is_synthetic": 0,
+                    }
+                )
+                distance = 0.01 * index
+                score_rows.append(
+                    {
+                        "image_id": f"{label}_synth_{index}",
+                        "image_path": f"synthetic/{label}_{index}.png",
+                        "label": label,
+                        "group_id": f"synthetic_{label}_{index}",
+                        "is_synthetic": 1,
+                        "source_image_id": source_id,
+                        "source_image_path": source_path,
+                        "source_group_id": group_id,
+                        "nearest_real_distance": distance,
+                        "feature_margin": 0.1 - distance,
+                        "inside_real_manifold": int(index < 18),
+                        "geometry_score": 1.0 - distance,
+                        "passes_geometry_filter": int(index < 6),
+                    }
+                )
+        outputs, assignment, metadata = build_outputs(
+            pd.DataFrame(train_rows),
+            pd.DataFrame(score_rows),
+            target_classes=labels,
+            dose_per_class=2,
+            max_source_reuse=1,
+            sample_weight=0.5,
+            seed=17,
+        )
+        selected_ids = []
+        for stratum in STRATA:
+            selected = outputs[stratum]["selected"]
+            replay = outputs[stratum]["replay_rows"]
+            self.assertEqual(len(selected), 6)
+            self.assertEqual(len(replay), 6)
+            self.assertEqual(
+                selected["label"].value_counts().to_dict(),
+                {"mel": 2, "akiec": 2, "bkl": 2},
+            )
+            self.assertTrue((replay["sample_weight"] == 0.5).all())
+            selected_ids.extend(selected["image_id"].tolist())
+        self.assertEqual(len(selected_ids), len(set(selected_ids)))
+        self.assertEqual(int(assignment["stage10_selected"].sum()), 24)
+        self.assertEqual(metadata["strata_overlap_rows"], 0)
 
 
 if __name__ == "__main__":

@@ -236,6 +236,10 @@ source-matched replay и calibration:
 план причинного geometry-dose эксперимента Stage 10:
 `docs/stage9_results_and_stage10_plan_2026-07-27.md`.
 
+Литературное обоснование, зафиксированные geometry strata, matched-replay
+матрица и decision rules Stage 10:
+`docs/stage10_literature_and_geometry_protocol.md`.
+
 Обязательный порядок фиксации гипотез, изменений кода, проверок, результатов и
 использованной литературы:
 `docs/research_change_protocol.md`.
