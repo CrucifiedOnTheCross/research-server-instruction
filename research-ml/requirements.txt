@@ -8,6 +8,8 @@ Pillow
 PyYAML
 tqdm
 tensorboard
+mlflow==3.14.0
+nvidia-ml-py==13.610.43
 matplotlib
 seaborn
 isic-cli

@@ -48,9 +48,8 @@ Diagnostics were written to:
 
 `/srv/research/projects/default/ham10000/reports/stage5_diagnostics`
 
-Browser link:
-
-`http://10.200.1.180:8011/files/reports/stage5_diagnostics/index.html?token=results`
+Сводные метрики отчета импортированы в MLflow:
+`http://10.200.1.180:5000`. Исходные файлы остаются доступны через JupyterHub.
 
 Key result:
 

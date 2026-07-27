@@ -1,0 +1,72 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: research-fiftyone-mongo
+    restart: unless-stopped
+    volumes:
+      - ${TRACKING_DATA_ROOT:-/srv/research/projects/default/research-ml/tracking-data}/fiftyone/mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  mlflow:
+    build:
+      context: ..
+      dockerfile: tracking/mlflow.Dockerfile
+    container_name: research-mlflow
+    restart: unless-stopped
+    user: "1000:1006"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ${TRACKING_DATA_ROOT:-/srv/research/projects/default/research-ml/tracking-data}/mlflow:/mlflow
+      - ${PROJECT_ROOT:-/srv/research/projects/default/research-ml}:/project:ro
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --artifacts-destination
+      - /mlflow/artifacts
+      - --allowed-hosts
+      - 10.200.1.180:5000,localhost:5000,127.0.0.1:5000,mlflow:5000
+      - --cors-allowed-origins
+      - http://10.200.1.180:5000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  fiftyone:
+    image: voxel51/fiftyone:1.19.0
+    container_name: research-fiftyone
+    restart: unless-stopped
+    ports:
+      - "5151:5151"
+    environment:
+      FIFTYONE_DATABASE_URI: mongodb://mongo:27017
+      FIFTYONE_DEFAULT_DATASET_DIR: /fiftyone/datasets
+      FIFTYONE_DO_NOT_TRACK: "true"
+      FIFTYONE_DATASET: ham10000-synthetic-audit
+      FIFTYONE_PORT: "5151"
+    volumes:
+      - /srv/research/projects/default:/srv/research/projects/default:ro
+      - ${PROJECT_ROOT:-/srv/research/projects/default/research-ml}:/project:ro
+      - ${TRACKING_DATA_ROOT:-/srv/research/projects/default/research-ml/tracking-data}/fiftyone:/fiftyone
+    working_dir: /project
+    command: ["python", "/project/tracking/fiftyone_app.py"]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5151')"]
+      interval: 15s
+      timeout: 5s
+      retries: 20

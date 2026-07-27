@@ -4,6 +4,10 @@
 
 Статус: **код подготовлен, запуск заблокирован до завершения и разбора Stage 10**.
 
+Результаты Stage 11 публикуются в MLflow, а visual audit synthetic/real
+выполняется в FiftyOne. Самописный HTML results index больше не используется:
+см. `docs/experiment_tracking_migration.md`.
+
 ## Зачем нужен Stage 11
 
 Stage 10 отвечает на вопрос о downstream utility различных geometry strata

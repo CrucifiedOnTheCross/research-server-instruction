@@ -102,13 +102,14 @@ chmod +x scripts/*.sh
 
 ```bash
 cd /srv/research/projects/default/research-ml
-./scripts/start_results_jupyter.sh
+./scripts/start_tracking_stack.sh
 ```
 
 Ссылки:
 
-- Dashboard: `http://10.200.1.180:8011/files/index.html?token=results`
-- File browser: `http://10.200.1.180:8011/lab/tree/?token=results`
+- MLflow experiments: `http://10.200.1.180:5000`
+- FiftyOne synthetic/real explorer: `http://10.200.1.180:5151`
+- Project files: JupyterHub `http://10.200.1.180:8000`
 
 ## Второй этап: targeted synthetic augmentation
 
@@ -243,6 +244,9 @@ source-matched replay и calibration:
 Условный протокол квалификации baseline Stage 11 с ConvNeXt-S/B, DINOv2
 linear/full controls и формальным launch gate, закрытым до анализа Stage 10:
 `docs/stage11_baseline_qualification_protocol.md`.
+
+Архитектура experiment tracking и переход от HTML dashboard к MLflow/FiftyOne:
+`docs/experiment_tracking_migration.md`.
 
 Обязательный порядок фиксации гипотез, изменений кода, проверок, результатов и
 использованной литературы:

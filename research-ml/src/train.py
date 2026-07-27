@@ -24,6 +24,7 @@ from .losses import build_loss
 from .metrics import compute_metrics, softmax
 from .models import configure_classifier_only, create_model, load_initial_checkpoint
 from .reproducibility import collect_environment, set_seed
+from .tracking import MlflowTracker
 
 
 def parse_args() -> argparse.Namespace:
@@ -431,6 +432,8 @@ def main() -> None:
     dtype = autocast_dtype(config)
     scaler = torch.amp.GradScaler("cuda") if dtype == torch.float16 and device.type == "cuda" else None
     writer = SummaryWriter(log_dir=str(run_dir / "tensorboard"))
+    tracker = MlflowTracker(config, run_dir, logger)
+    tracker.start()
 
     monitor = str(config["training"]["monitor"])
     mode = str(config["training"]["monitor_mode"])
@@ -474,6 +477,7 @@ def main() -> None:
         metrics_row.update(flatten_metrics("val", val_metrics))
         append_csv(run_dir / "metrics.csv", metrics_row)
         append_jsonl(run_dir / "metrics.jsonl", metrics_row)
+        tracker.log_epoch(metrics_row)
         for key, value in metrics_row.items():
             if key != "epoch":
                 writer.add_scalar(key, value, epoch)
@@ -555,6 +559,7 @@ def main() -> None:
         },
     )
     writer.close()
+    tracker.finish()
     logger.info("Finished in %.1f minutes. Test metrics: %s", elapsed / 60.0, test_metrics)
 
 

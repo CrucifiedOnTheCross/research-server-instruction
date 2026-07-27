@@ -14,13 +14,10 @@
 
 ## Артефакты
 
-Серверные HTML-отчеты доступны через results dashboard:
-
-- Dashboard: `http://10.200.1.180:8011/files/index.html?token=results`
-- kNN raw sample: `http://10.200.1.180:8011/files/stage2_diagnostics/knn_gallery/raw_sample40/index.html?token=results`
-- kNN strict: `http://10.200.1.180:8011/files/stage2_diagnostics/knn_gallery/strict/index.html?token=results`
-- kNN topk80: `http://10.200.1.180:8011/files/stage2_diagnostics/knn_gallery/topk80/index.html?token=results`
-- Confusion delta folder: `http://10.200.1.180:8011/files/stage2_diagnostics/confusion_delta/?token=results`
+С 2026-07-27 самописный results dashboard выведен из эксплуатации.
+Метрики запусков и структурированные артефакты доступны в MLflow:
+`http://10.200.1.180:5000`. Визуальный аудит изображений выполняется в
+FiftyOne: `http://10.200.1.180:5151`.
 
 Файлы на сервере:
 
@@ -238,4 +235,3 @@ Stage 2 показал важный отрицательный результа�
 3. Можно ли предсказать полезность synthetic sample до обучения по признакам baseline-модели?
 4. Какой баланс лучше для медицинской задачи: улучшать worst-class recall или macro F1, если эти цели расходятся?
 5. Нужно ли делать отдельный selection policy для каждого класса, потому что `bkl`, `mel` и `akiec` реагируют на синтетику по-разному?
-

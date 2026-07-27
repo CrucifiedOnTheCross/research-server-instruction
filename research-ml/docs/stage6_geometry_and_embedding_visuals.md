@@ -41,9 +41,8 @@ Report:
 
 `/srv/research/projects/default/ham10000/reports/stage6_feature_geometry/index.html`
 
-Browser:
-
-`http://10.200.1.180:8011/files/reports/stage6_feature_geometry/index.html?token=results`
+Сводные метрики отчета импортированы в MLflow:
+`http://10.200.1.180:5000`.
 
 Key numbers with Stage 1 CE feature encoder:
 
@@ -77,9 +76,9 @@ Report:
 
 `/srv/research/projects/default/ham10000/reports/stage6_embedding_visuals/index.html`
 
-Browser:
-
-`http://10.200.1.180:8011/files/reports/stage6_embedding_visuals/index.html?token=results`
+Изображения и их геометрические признаки доступны в FiftyOne:
+`http://10.200.1.180:5151`. Исходные PNG/CSV остаются доступны через
+JupyterHub.
 
 Files:
 
