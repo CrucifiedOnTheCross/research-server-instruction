@@ -135,6 +135,17 @@ def class_counts_for_loss(bundle: Any) -> list[int]:
     return [int(counts[bundle.idx_to_class[idx]]) for idx in range(len(bundle.idx_to_class))]
 
 
+def ema_update_step(
+    epoch: int,
+    batch_step: int,
+    batches_per_epoch: int,
+    accumulation_steps: int,
+) -> int:
+    updates_per_epoch = math.ceil(batches_per_epoch / accumulation_steps)
+    updates_in_epoch = math.ceil(batch_step / accumulation_steps)
+    return (epoch - 1) * updates_per_epoch + updates_in_epoch
+
+
 def train_one_epoch(
     model: nn.Module,
     loader: torch.utils.data.DataLoader,
@@ -212,7 +223,10 @@ def train_one_epoch(
             else:
                 optimizer.step()
             if model_ema is not None:
-                model_ema.update(model)
+                model_ema.update(
+                    model,
+                    step=ema_update_step(epoch, step, len(loader), accumulation),
+                )
             optimizer.zero_grad(set_to_none=True)
 
         examples = targets.numel()

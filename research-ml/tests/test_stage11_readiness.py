@@ -10,7 +10,7 @@ from torch import nn
 
 from src.losses import build_loss
 from src.models import create_model
-from src.train import make_optimizer, make_scheduler, optimizer_group_metadata
+from src.train import ema_update_step, make_optimizer, make_scheduler, optimizer_group_metadata
 from tools.check_stage11_gate import expected_stage10
 
 
@@ -91,6 +91,12 @@ class Stage11ReadinessTests(unittest.TestCase):
         scheduler.step()
         updated_lrs = [float(group["lr"]) for group in optimizer.param_groups]
         self.assertAlmostEqual(min(updated_lrs) / max(updated_lrs), initial_ratio)
+
+    def test_ema_warmup_receives_monotonic_optimizer_update_steps(self) -> None:
+        self.assertEqual(ema_update_step(1, 2, 5, 2), 1)
+        self.assertEqual(ema_update_step(1, 4, 5, 2), 2)
+        self.assertEqual(ema_update_step(1, 5, 5, 2), 3)
+        self.assertEqual(ema_update_step(2, 2, 5, 2), 4)
 
     def test_stage11_gate_matrix_requires_24_stage10_runs(self) -> None:
         decision = {

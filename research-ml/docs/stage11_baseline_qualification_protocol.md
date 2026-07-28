@@ -346,19 +346,22 @@ Effective batch фиксируется в 32 для full fine-tuning сравн�
 - DINOv2-B/14 full, batch 16, 392 px: peak reserved VRAM 5.40 GiB;
 - aggregate Stage 10 analysis импортирован в `HAM10000 Reports` без
   дублирования 77 исторических runs;
-- контейнер `research-stage11-baselines` запущен;
-- первый run:
-  `stage11_real_convnext_base_regularized_384/20260728-045231_42`;
-- resolved config подтверждает seed 42, batch 32 и `run_test=false`;
-- после первой эпохи созданы `metrics.csv`, validation metrics/predictions и
-  `best.pt`;
-- рабочая нагрузка: GPU utilization 100%, 14.05/16.30 GiB VRAM,
-  около 282 W при 66 C;
-- MLflow run имеет состояние `RUNNING` и принимает epoch/system metrics.
+- pilot run подтвердил GPU utilization 100%, 14.05/16.30 GiB VRAM,
+  около 282 W при 66 C и передачу epoch/system metrics в MLflow.
 
-Первое значение macro F1 в warmup-эпохе не интерпретируется как результат:
-модель проходит прогрев learning rate. Научное сравнение выполняется только
-после завершения всех трёх seeds и hierarchical lesion-group bootstrap.
+Pilot был остановлен после пятой эпохи и исключён из анализа. Проверка против
+Stage 8 показала аномально медленный рост EMA validation macro F1: 0.121 против
+0.645 у прежнего online baseline на эпохе 5. Причина найдена в API
+`timm.ModelEmaV3`: вызов `update(model)` без `step` возвращает постоянный decay
+0.9999 и игнорирует `use_warmup=true`. В результате EMA почти сохраняла
+случайный classifier head.
+
+Исправление передаёт глобальный номер optimizer update с учётом epoch,
+gradient accumulation и неполного последнего accumulation window. Добавлен
+регрессионный тест монотонности update-step. Невалидный каталог переименован с
+суффиксом `_invalid_ema_no_warmup`; он не содержит `summary.json` и не может
+быть принят downstream-анализом. Stage 11A перезапускается с seed 42 после
+повторных unit tests и короткой проверки ожидаемого восстановления validation.
 
 ## Открытые научные вопросы
 
