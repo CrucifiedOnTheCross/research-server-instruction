@@ -538,18 +538,33 @@ def plot_distribution_metrics(frame: pd.DataFrame, path: Path) -> None:
     plt.close(figure)
 
 
-def plot_probability_shifts(frame: pd.DataFrame, path: Path) -> None:
-    figure, axis = plt.subplots(figsize=(8, 4.8))
+def plot_probability_shifts(
+    frame: pd.DataFrame, ranking: pd.DataFrame, path: Path
+) -> None:
+    figure, axes = plt.subplots(1, 2, figsize=(12, 4.8))
     labels = list(TARGET_CLASSES)
     positions = np.arange(len(labels))
+    colors = ["#a33d3d", "#4776a8", "#6b8e4e"]
     means = frame.groupby("label")["separation_delta"].mean().reindex(labels)
     errors = frame.groupby("label")["separation_delta"].std().reindex(labels).fillna(0)
-    axis.bar(positions, means, yerr=errors, capsize=4, color=["#a33d3d", "#4776a8", "#6b8e4e"])
-    axis.axhline(0, color="black", linewidth=0.8)
-    axis.set_xticks(positions, labels)
-    axis.set_ylabel("Synthetic minus replay separation")
-    axis.set_title("Stage 11B class probability separation shift")
-    axis.grid(axis="y", alpha=0.2)
+    axes[0].bar(positions, means, yerr=errors, capsize=4, color=colors)
+    axes[0].axhline(0, color="black", linewidth=0.8)
+    axes[0].set_xticks(positions, labels)
+    axes[0].set_ylabel("Synthetic minus replay")
+    axes[0].set_title("Mean probability separation")
+    axes[0].grid(axis="y", alpha=0.2)
+
+    rank_means = ranking.groupby("label")["auprc_delta"].mean().reindex(labels)
+    rank_errors = ranking.groupby("label")["auprc_delta"].std().reindex(labels).fillna(0)
+    axes[1].bar(
+        positions, rank_means, yerr=rank_errors, capsize=4, color=colors
+    )
+    axes[1].axhline(0, color="black", linewidth=0.8)
+    axes[1].set_xticks(positions, labels)
+    axes[1].set_ylabel("Synthetic minus replay")
+    axes[1].set_title("AUPRC")
+    axes[1].grid(axis="y", alpha=0.2)
+    figure.suptitle("Stage 12: mean separation does not guarantee ranking utility")
     figure.tight_layout()
     figure.savefig(path, dpi=180)
     plt.close(figure)
@@ -746,7 +761,9 @@ def main() -> None:
     ranking.to_csv(out_dir / "ranking_tail_diagnostics.csv", index=False)
     confusers.to_csv(out_dir / "confuser_probability_shifts.csv", index=False)
     plot_distribution_metrics(feature_frame, out_dir / "melanoma_prdc_by_encoder.png")
-    plot_probability_shifts(probability, out_dir / "probability_separation_shift.png")
+    plot_probability_shifts(
+        probability, ranking, out_dir / "probability_separation_shift.png"
+    )
     failure_modes = interpret_failure_modes(
         feature_frame, novelty_frame, frequency_ci, ranking
     )
