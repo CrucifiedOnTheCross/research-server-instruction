@@ -78,7 +78,9 @@ PRDC, diversity и frequency gap, а не вывод по visual quality.
 ### Данные
 
 - 90 `strict_id` synthetic: 30 `mel`, 30 `akiec`, 30 `bkl`;
-- 90 точных real sources, связанных по `source_image_id`;
+- 90 source-matched real replay presentations, связанных с synthetic по
+  `source_image_id`; один real source может соответствовать нескольким
+  synthetic variants;
 - real train reference классов `mel`, `akiec`, `bkl`;
 - validation predictions Stage 11B для seeds 42, 43, 44.
 
@@ -176,4 +178,3 @@ Prediction diagnostics:
 - `argmax_transition_counts.csv`;
 - caches `embeddings_*.npz` и соответствующие index CSV;
 - PNG-графики без HTML dashboard.
-

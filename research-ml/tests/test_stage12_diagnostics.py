@@ -3,9 +3,11 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import pandas as pd
 
 from tools.analyze_stage12_failure_modes import (
     frequency_features,
+    frequency_bootstrap,
     grouped_bootstrap_mean,
     prdc,
     vendi_score,
@@ -52,6 +54,42 @@ class Stage12DiagnosticsTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertLessEqual(first[1], first[0])
         self.assertLessEqual(first[0], first[2])
+
+    def test_frequency_bootstrap_keeps_duplicate_source_presentations_paired(self) -> None:
+        rows = []
+        for index, pair in enumerate(("synth_a", "synth_b")):
+            for kind, value in (("synthetic", 2.0 + index), ("source", 1.0)):
+                rows.append(
+                    {
+                        "kind": kind,
+                        "pair_id": pair,
+                        "label": "mel",
+                        "source_group_id": "lesion_1",
+                        "fft_low_fraction": value,
+                        "fft_mid_fraction": value,
+                        "fft_high_fraction": value,
+                        "spectral_slope": value,
+                        "gradient_rms": value,
+                    }
+                )
+        for label in ("akiec", "bkl"):
+            for kind, value in (("synthetic", 2.0), ("source", 1.0)):
+                rows.append(
+                    {
+                        "kind": kind,
+                        "pair_id": f"{label}_pair",
+                        "label": label,
+                        "source_group_id": f"{label}_lesion",
+                        "fft_low_fraction": value,
+                        "fft_mid_fraction": value,
+                        "fft_high_fraction": value,
+                        "spectral_slope": value,
+                        "gradient_rms": value,
+                    }
+                )
+        result = frequency_bootstrap(pd.DataFrame(rows), 20, 4)
+        mel = result[(result["label"] == "mel") & (result["metric"] == "gradient_rms")]
+        self.assertAlmostEqual(float(mel.iloc[0]["mean_synthetic_minus_source"]), 1.5)
 
 
 if __name__ == "__main__":

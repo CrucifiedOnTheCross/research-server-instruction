@@ -318,6 +318,7 @@ def collect_frequency(rows: list[dict[str, Any]], root: Path) -> pd.DataFrame:
                 "kind": row["_kind"],
                 "source_image_id": source_id(row) if row["_kind"] == "synthetic" else "",
                 "source_group_id": row.get("source_group_id") or row.get("group_id", ""),
+                "pair_id": row.get("_pair_id", ""),
                 **values,
             }
         )
@@ -343,12 +344,12 @@ def frequency_bootstrap(
 ) -> pd.DataFrame:
     synthetic = frame[frame["kind"] == "synthetic"].copy()
     source = frame[frame["kind"] == "source"].copy()
-    source = source.set_index("image_id")
+    source = source.set_index("pair_id")
     records: list[dict[str, Any]] = []
     metrics = ("fft_low_fraction", "fft_mid_fraction", "fft_high_fraction", "spectral_slope", "gradient_rms")
     for label in TARGET_CLASSES:
         subset = synthetic[synthetic["label"] == label]
-        source_rows = source.loc[subset["source_image_id"]]
+        source_rows = source.loc[subset["pair_id"]]
         groups = subset["source_group_id"].astype(str).to_numpy()
         for metric in metrics:
             delta = subset[metric].to_numpy(float) - source_rows[metric].to_numpy(float)
@@ -482,9 +483,8 @@ def main() -> None:
         key = source_id(row)
         if key not in real_by_id:
             raise ValueError(f"Synthetic source {key} is absent from real train")
-        source_rows.append(dict(real_by_id[key]))
-    if len({row_id(row) for row in source_rows}) != len(source_rows):
-        raise ValueError("Stage 12 requires unique source images")
+        source_rows.append({**real_by_id[key], "_pair_id": row_id(row)})
+        row["_pair_id"] = row_id(row)
 
     rows: list[dict[str, Any]] = []
     for row in real_rows_all:
@@ -565,7 +565,8 @@ def main() -> None:
         "stage": "stage12",
         "locked_test_evaluated": False,
         "synthetic_rows": len(synthetic_rows),
-        "unique_sources": len(source_rows),
+        "replay_presentations": len(source_rows),
+        "unique_sources": len({row_id(row) for row in source_rows}),
         "target_classes": list(TARGET_CLASSES),
         "encoders": feature_frame["encoder"].unique().tolist(),
         "prdc_k": args.prdc_k,
@@ -581,4 +582,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
