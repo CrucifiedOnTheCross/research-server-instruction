@@ -183,3 +183,143 @@ Prediction diagnostics:
 - `argmax_transition_counts.csv`;
 - caches `embeddings_*.npz` и соответствующие index CSV;
 - PNG-графики без HTML dashboard.
+
+## Фактическое выполнение
+
+Дата: 2026-07-29.
+
+- контейнер `research-stage12-diagnostics` завершён с exit code 0;
+- 90 synthetic presentations, 90 replay presentations;
+- 84 уникальных real sources;
+- DINOv2 и три real-only ConvNeXt-S encoders;
+- PRDC `k=5`;
+- 5000 source-group bootstrap повторов;
+- validation predictions seeds 42, 43, 44;
+- `locked_test_evaluated=false`;
+- 32/32 server regression tests passed;
+- code version: `fb02eaf`.
+
+### Distribution geometry
+
+Синтетика имеет меньшие precision, density и coverage в 11 из 12
+`encoder × class` сравнений. Одновременно Vendi score выше replay в 11 из 12
+сравнений. Следовательно, наблюдается не простой diversity collapse:
+синтетика разнообразнее относительно самой себя, но её разнообразие хуже
+совпадает с полезной реальной поддержкой класса.
+
+DINOv2:
+
+| Class | Arm | Precision | Recall | Density | Coverage | Vendi |
+|---|---|---:|---:|---:|---:|---:|
+| mel | synthetic | 0.400 | 0.933 | 0.173 | 0.030 | 6.359 |
+| mel | replay | 0.900 | 0.982 | 0.587 | 0.089 | 5.739 |
+| akiec | synthetic | 0.400 | 0.951 | 0.180 | 0.112 | 6.808 |
+| akiec | replay | 0.767 | 0.990 | 0.593 | 0.317 | 6.393 |
+| bkl | synthetic | 0.567 | 0.937 | 0.227 | 0.031 | 6.616 |
+| bkl | replay | 0.833 | 0.978 | 0.893 | 0.133 | 6.475 |
+
+В ConvNeXt-S spaces эффект сильнее для `mel` и `bkl`. Усреднённый coverage:
+
+- `mel`: synthetic 0.023, replay 0.165;
+- `akiec`: synthetic 0.163, replay 0.236;
+- `bkl`: synthetic 0.013, replay 0.136.
+
+Высокий ConvNeXt PRDC recall у synthetic `mel/bkl` не противоречит низкому
+coverage: удалённые и широко разбросанные synthetic points создают большие
+generated radii. Именно поэтому Naeem et al. рекомендуют density/coverage как
+более надёжное дополнение к precision/recall.
+
+### Representation mismatch
+
+Среднее отношение
+`distance(synthetic, own source) / distance(synthetic, nearest non-source)`:
+
+| Class | DINOv2 | ConvNeXt-S, mean over seeds |
+|---|---:|---:|
+| mel | 0.761 | 1.076 |
+| akiec | 0.647 | 1.246 |
+| bkl | 0.714 | 1.857 |
+
+DINOv2 считает synthetic source-like, тогда как task-specific real-only
+ConvNeXt-S, особенно для `bkl`, видит сдвиг за пределы собственного source
+neighbourhood. Это подтверждает `representation_mismatch`: single-encoder
+selection была недостаточной.
+
+### Frequency and texture
+
+14 из 15 paired class-metric CI не включают ноль.
+
+| Class | Mid-frequency fraction | High-frequency fraction | Spectral slope | Gradient RMS |
+|---|---:|---:|---:|---:|
+| mel | +0.00581 | -0.00060, CI пересекает 0 | -0.2548 | +0.00263 |
+| akiec | +0.00376 | -0.00122 | -0.1926 | +0.00117 |
+| bkl | +0.00486 | -0.00168 | -0.2758 | +0.00142 |
+
+Это не следует упрощать до тезиса «синтетика размыта»: gradient energy
+увеличилась, а крайний high-frequency energy уменьшился для `akiec/bkl`.
+Наблюдается систематическая перестройка спектра, совместимая с искусственными
+границами/текстурами генератора.
+
+### Почему melanoma AUPRC ухудшилась
+
+Средняя melanoma probability separation выросла на `+0.0249`, но это скрывает
+неоднородный сдвиг хвостов:
+
+- melanoma AUPRC delta: `-0.0447`, 3/3 seeds;
+- lower positive tail `q10`: `-0.0236`;
+- upper negative tail `q90`: `+0.1127`;
+- top-K precision, где `K=143`: `-0.0093` в среднем;
+- наибольший mean `mel`-score сдвиг среди confusers наблюдается для `akiec`;
+- `akiec` имеет наибольший `q95` confuser shift: `+0.1559`.
+
+То есть часть melanoma positives становится хуже ранжирована, а достаточно
+много negatives получают повышенный melanoma score. Argmax gains в seeds
+43/44 не компенсируют этот ranking-tail regression.
+
+### Решение по гипотезам
+
+| Failure mode | Решение |
+|---|---|
+| Coverage failure | поддержан, 11/12 сравнений |
+| Simple diversity/mode collapse | не поддержан: Vendi выше в 11/12 |
+| Representation mismatch | поддержан |
+| Frequency gap | поддержан, 14/15 CI |
+| Melanoma ranking-tail failure | поддержан, 3/3 seeds |
+| Простое «синтетика слишком похожа на source» | не поддержано task space |
+
+## Научный вывод
+
+Отбор по близости к real manifold в одном foundation-model space не
+гарантирует downstream utility. `strict_id` синтетика добавляет разнообразие,
+но это разнообразие частично лежит вне task-relevant class support и меняет
+частотную структуру. В результате decision boundary может улучшить отдельные
+argmax-метрики, одновременно ухудшая clinically relevant ranking.
+
+Для статьи это более содержательный результат, чем «синтетика не помогла»:
+показано, какие свойства single-encoder selection не контролирует и почему
+source-matched replay остаётся сильнее по melanoma AUPRC.
+
+## Stage 13A
+
+Сначала анализируется существующий pool из 1440 кандидатов:
+
+- 480 изображений на класс;
+- strengths 0.15, 0.30, 0.45;
+- 160 real sources на class.
+
+Для всех кандидатов считаются DINOv2, ensemble real-only ConvNeXt-S и
+frequency features. Новый selection gate должен:
+
+1. требовать согласованную class fidelity в DINOv2 и ConvNeXt-S;
+2. использовать двухсторонний novelty interval, а не минимальное расстояние;
+3. ограничивать frequency deviation относительно собственного source;
+4. разрешать не более одного synthetic variant на source;
+5. выбирать facility-location subset, покрывающий недопредставленные real
+   neighbourhoods;
+6. отдельно штрафовать `mel ↔ akiec` confuser margin.
+
+Если из текущего pool нельзя собрать 30 изображений на класс, которые проходят
+gate, генерация меняется. Если pool достаточен, выбирается один новый набор из
+90 изображений и выполняется только один paired ConvNeXt-S validation screen:
+новая синтетика против source-matched replay, seeds 42, 43, 44. Existing
+`strict_id` повторно не обучается.
