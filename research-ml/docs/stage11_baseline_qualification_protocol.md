@@ -390,6 +390,14 @@ CPU pilot `20260728-070735_42` остановлен, помечен в MLflow к
 недоступном GPU завершается fail-fast ошибкой. Добавлен регрессионный тест,
 а pipeline перезапускается в новом контейнере с driver 595.84.
 
+## Итог Stage 11A
+
+Все 12 runs завершены, полный анализ сохранён в
+`docs/stage11_results_and_stage11b_decision_2026-07-28.md`. ConvNeXt-S
+выбран основным baseline; DINOv2 full оставлен secondary architecture
+sensitivity. Stage 11B разблокирован только для одного contrast:
+`strict_id synthetic` против source-matched replay на ConvNeXt-S, seeds 42-44.
+
 ## Открытые научные вопросы
 
 - Достаточно ли внутреннего HAM10000 validation для выбора representation, или
