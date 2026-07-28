@@ -14,7 +14,7 @@ stage11:
   selected_stage10_stratum: strict_id
   selected_baseline: configs/ham10000_stage11_convnext_small_regularized_384.yaml
   secondary_architecture: configs/ham10000_stage11_dinov2_base_finetune_392.yaml
-  stage11b_status: approved_not_started
+  stage11b_status: running
   stage11b_comparison: synthetic_strict_id_vs_source_matched_replay
   stage11b_seeds: [42, 43, 44]
   stage11b_configs:

@@ -2,6 +2,17 @@
 
 Дата фиксации протокола: 2026-07-28, до запуска Stage 11B.
 
+Статус запуска: `running`, container `research-stage11b-confirmatory`.
+
+Проверки перед запуском:
+
+- server unit tests: 25/25 passed;
+- Stage 11B gate: open;
+- locked test: не открывался;
+- GPU smoke: batch 32, 384 px, BF16, peak VRAM 9.00 GiB, finite loss;
+- первый training run: GPU utilization 99%, VRAM 10.5 GiB;
+- commit зафиксированного протокола и кода: `3905b4d`.
+
 ## Научный вопрос
 
 Stage 10 показал, что 90 синтетических изображений из `strict_id` stratum
