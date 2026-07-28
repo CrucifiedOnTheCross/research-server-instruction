@@ -555,6 +555,104 @@ def plot_probability_shifts(frame: pd.DataFrame, path: Path) -> None:
     plt.close(figure)
 
 
+def interpret_failure_modes(
+    feature_frame: pd.DataFrame,
+    novelty_frame: pd.DataFrame,
+    frequency_ci: pd.DataFrame,
+    ranking: pd.DataFrame,
+) -> dict[str, Any]:
+    paired = feature_frame.pivot(
+        index=["encoder", "label"], columns="arm"
+    )
+    comparisons = len(paired)
+    coverage_lower = int(
+        (
+            paired[("prdc_coverage", "synthetic")]
+            < paired[("prdc_coverage", "source")]
+        ).sum()
+    )
+    precision_lower = int(
+        (
+            paired[("prdc_precision", "synthetic")]
+            < paired[("prdc_precision", "source")]
+        ).sum()
+    )
+    density_lower = int(
+        (
+            paired[("prdc_density", "synthetic")]
+            < paired[("prdc_density", "source")]
+        ).sum()
+    )
+    vendi_higher = int(
+        (
+            paired[("vendi_score", "synthetic")]
+            > paired[("vendi_score", "source")]
+        ).sum()
+    )
+    novelty_means = novelty_frame.groupby(["encoder", "label"])[
+        "novelty_ratio"
+    ].mean()
+    dino_source_like = bool((novelty_means.loc["dino"] < 1.0).all())
+    convnext_means = (
+        novelty_frame[novelty_frame["encoder"].str.startswith("convnext")]
+        .groupby("label")["novelty_ratio"]
+        .mean()
+    )
+    convnext_non_source_like = bool((convnext_means > 1.0).all())
+    frequency_significant = int(
+        (
+            (frequency_ci["ci95_low"] > 0)
+            | (frequency_ci["ci95_high"] < 0)
+        ).sum()
+    )
+    melanoma_ranking = ranking[ranking["label"] == "mel"]
+    return {
+        "coverage_failure": {
+            "supported": coverage_lower >= comparisons - 1,
+            "coverage_lower_comparisons": coverage_lower,
+            "total_comparisons": comparisons,
+            "precision_lower_comparisons": precision_lower,
+            "density_lower_comparisons": density_lower,
+        },
+        "simple_diversity_collapse": {
+            "supported": vendi_higher < comparisons / 2,
+            "synthetic_vendi_higher_comparisons": vendi_higher,
+            "total_comparisons": comparisons,
+            "interpretation": "Higher diversity does not imply useful class coverage.",
+        },
+        "representation_mismatch": {
+            "supported": dino_source_like and convnext_non_source_like,
+            "dino_mean_novelty_ratio_by_class": {
+                key: float(value)
+                for key, value in novelty_means.loc["dino"].items()
+            },
+            "convnext_mean_novelty_ratio_by_class": {
+                key: float(value) for key, value in convnext_means.items()
+            },
+        },
+        "frequency_gap": {
+            "supported": frequency_significant >= len(frequency_ci) - 1,
+            "significant_paired_comparisons": frequency_significant,
+            "total_comparisons": int(len(frequency_ci)),
+        },
+        "melanoma_ranking_tail_failure": {
+            "supported": bool(
+                (melanoma_ranking["auprc_delta"] < 0).all()
+                and melanoma_ranking["negative_q90_delta"].mean() > 0
+            ),
+            "auprc_negative_seeds": int(
+                (melanoma_ranking["auprc_delta"] < 0).sum()
+            ),
+            "mean_negative_q90_delta": float(
+                melanoma_ranking["negative_q90_delta"].mean()
+            ),
+            "mean_positive_q10_delta": float(
+                melanoma_ranking["positive_q10_delta"].mean()
+            ),
+        },
+    }
+
+
 def main() -> None:
     args = parse_args()
     project_root = Path(args.project_root).resolve()
@@ -649,6 +747,9 @@ def main() -> None:
     confusers.to_csv(out_dir / "confuser_probability_shifts.csv", index=False)
     plot_distribution_metrics(feature_frame, out_dir / "melanoma_prdc_by_encoder.png")
     plot_probability_shifts(probability, out_dir / "probability_separation_shift.png")
+    failure_modes = interpret_failure_modes(
+        feature_frame, novelty_frame, frequency_ci, ranking
+    )
 
     summary = {
         "status": "complete",
@@ -663,6 +764,7 @@ def main() -> None:
         "bootstrap_replicates": args.bootstrap_replicates,
         "reference_excludes_all_synthetic_sources": True,
         "prediction_seeds": sorted(probability["seed"].unique().tolist()),
+        "failure_modes": failure_modes,
     }
     (out_dir / "analysis_summary.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8"

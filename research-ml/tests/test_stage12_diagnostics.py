@@ -9,6 +9,7 @@ from tools.analyze_stage12_failure_modes import (
     frequency_features,
     frequency_bootstrap,
     grouped_bootstrap_mean,
+    interpret_failure_modes,
     prdc,
     ranking_tail_diagnostics,
     vendi_score,
@@ -110,6 +111,67 @@ class Stage12DiagnosticsTest(unittest.TestCase):
         self.assertTrue(
             any(row["scored_class"] == "mel" for row in confusers)
         )
+
+    def test_failure_mode_summary_separates_coverage_from_diversity(self) -> None:
+        feature_rows = []
+        for encoder in ("dino", "convnext_real_seed42"):
+            for label in ("mel", "akiec", "bkl"):
+                feature_rows.extend(
+                    [
+                        {
+                            "encoder": encoder,
+                            "label": label,
+                            "arm": "source",
+                            "prdc_coverage": 0.5,
+                            "prdc_precision": 0.8,
+                            "prdc_density": 0.7,
+                            "vendi_score": 2.0,
+                        },
+                        {
+                            "encoder": encoder,
+                            "label": label,
+                            "arm": "synthetic",
+                            "prdc_coverage": 0.2,
+                            "prdc_precision": 0.4,
+                            "prdc_density": 0.3,
+                            "vendi_score": 3.0,
+                        },
+                    ]
+                )
+        novelty_rows = []
+        for label in ("mel", "akiec", "bkl"):
+            novelty_rows.extend(
+                [
+                    {"encoder": "dino", "label": label, "novelty_ratio": 0.7},
+                    {
+                        "encoder": "convnext_real_seed42",
+                        "label": label,
+                        "novelty_ratio": 1.3,
+                    },
+                ]
+            )
+        frequency = pd.DataFrame(
+            [{"ci95_low": 0.1, "ci95_high": 0.2}] * 3
+        )
+        ranking = pd.DataFrame(
+            [
+                {
+                    "label": "mel",
+                    "auprc_delta": -0.1,
+                    "negative_q90_delta": 0.2,
+                    "positive_q10_delta": -0.1,
+                }
+            ]
+        )
+        result = interpret_failure_modes(
+            pd.DataFrame(feature_rows),
+            pd.DataFrame(novelty_rows),
+            frequency,
+            ranking,
+        )
+        self.assertTrue(result["coverage_failure"]["supported"])
+        self.assertFalse(result["simple_diversity_collapse"]["supported"])
+        self.assertTrue(result["representation_mismatch"]["supported"])
 
 
 if __name__ == "__main__":
