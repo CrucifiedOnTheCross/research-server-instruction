@@ -120,6 +120,9 @@ Prediction diagnostics:
 - synthetic-minus-replay probability shift отдельно для positives и
   negatives;
 - изменение separation `mean(p|positive)-mean(p|negative)`;
+- изменение AUPRC, precision/recall в top-K (`K = число positives`),
+  квантилей positive scores и верхнего хвоста negative scores;
+- class-wise сдвиг вероятности для каждого confusing negative class;
 - argmax gains, losses и transition counts;
 - отдельный фокус на `mel`, `akiec`, `bkl`.
 
@@ -175,6 +178,8 @@ Prediction diagnostics:
 - `frequency_features.csv`;
 - `frequency_paired_bootstrap.csv`;
 - `prediction_probability_shifts.csv`;
+- `ranking_tail_diagnostics.csv`;
+- `confuser_probability_shifts.csv`;
 - `argmax_transition_counts.csv`;
 - caches `embeddings_*.npz` и соответствующие index CSV;
 - PNG-графики без HTML dashboard.

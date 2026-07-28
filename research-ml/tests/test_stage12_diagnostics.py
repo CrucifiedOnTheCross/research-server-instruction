@@ -10,6 +10,7 @@ from tools.analyze_stage12_failure_modes import (
     frequency_bootstrap,
     grouped_bootstrap_mean,
     prdc,
+    ranking_tail_diagnostics,
     vendi_score,
 )
 
@@ -90,6 +91,25 @@ class Stage12DiagnosticsTest(unittest.TestCase):
         result = frequency_bootstrap(pd.DataFrame(rows), 20, 4)
         mel = result[(result["label"] == "mel") & (result["metric"] == "gradient_rms")]
         self.assertAlmostEqual(float(mel.iloc[0]["mean_synthetic_minus_source"]), 1.5)
+
+    def test_ranking_tail_detects_hard_negative_regression(self) -> None:
+        replay = pd.DataFrame(
+            {
+                "target": ["mel", "mel", "nv", "nv"],
+                "prob_mel": [0.8, 0.7, 0.2, 0.1],
+                "prob_akiec": [0.1, 0.1, 0.1, 0.1],
+                "prob_bkl": [0.1, 0.1, 0.1, 0.1],
+            }
+        )
+        synthetic = replay.copy()
+        synthetic["prob_mel"] = [0.82, 0.72, 0.9, 0.05]
+        ranking, confusers = ranking_tail_diagnostics(replay, synthetic, 42)
+        mel = next(row for row in ranking if row["label"] == "mel")
+        self.assertLess(mel["auprc_delta"], 0)
+        self.assertGreater(mel["negative_q99_delta"], 0)
+        self.assertTrue(
+            any(row["scored_class"] == "mel" for row in confusers)
+        )
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ import pandas as pd
 import timm
 import torch
 from PIL import Image
+from sklearn.metrics import average_precision_score
 from sklearn.neighbors import NearestNeighbors
 from timm.data import create_transform, resolve_model_data_config
 from torch.utils.data import DataLoader, Dataset
@@ -374,9 +375,88 @@ def infer_seed(path: Path) -> int:
     return int(match.group(1))
 
 
-def prediction_diagnostics(project_root: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+def ranking_tail_diagnostics(
+    replay: pd.DataFrame, synthetic: pd.DataFrame, seed: int
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    ranking: list[dict[str, Any]] = []
+    confusers: list[dict[str, Any]] = []
+    for label in TARGET_CLASSES:
+        positive = replay["target"].to_numpy() == label
+        n_positive = int(positive.sum())
+        if n_positive == 0:
+            continue
+        replay_scores = replay[f"prob_{label}"].to_numpy(float)
+        synthetic_scores = synthetic[f"prob_{label}"].to_numpy(float)
+
+        def top_k_stats(scores: np.ndarray) -> tuple[float, float]:
+            top_indices = np.argsort(scores)[-n_positive:]
+            true_positives = int(positive[top_indices].sum())
+            value = true_positives / n_positive
+            return value, value
+
+        replay_precision, replay_recall = top_k_stats(replay_scores)
+        synthetic_precision, synthetic_recall = top_k_stats(synthetic_scores)
+        replay_ap = float(average_precision_score(positive, replay_scores))
+        synthetic_ap = float(average_precision_score(positive, synthetic_scores))
+        ranking.append(
+            {
+                "seed": seed,
+                "label": label,
+                "positive_count": n_positive,
+                "auprc_replay": replay_ap,
+                "auprc_synthetic": synthetic_ap,
+                "auprc_delta": synthetic_ap - replay_ap,
+                "top_k_precision_delta": synthetic_precision - replay_precision,
+                "top_k_recall_delta": synthetic_recall - replay_recall,
+                "positive_q10_delta": float(
+                    np.quantile(synthetic_scores[positive], 0.10)
+                    - np.quantile(replay_scores[positive], 0.10)
+                ),
+                "positive_q50_delta": float(
+                    np.quantile(synthetic_scores[positive], 0.50)
+                    - np.quantile(replay_scores[positive], 0.50)
+                ),
+                "negative_q90_delta": float(
+                    np.quantile(synthetic_scores[~positive], 0.90)
+                    - np.quantile(replay_scores[~positive], 0.90)
+                ),
+                "negative_q95_delta": float(
+                    np.quantile(synthetic_scores[~positive], 0.95)
+                    - np.quantile(replay_scores[~positive], 0.95)
+                ),
+                "negative_q99_delta": float(
+                    np.quantile(synthetic_scores[~positive], 0.99)
+                    - np.quantile(replay_scores[~positive], 0.99)
+                ),
+            }
+        )
+        for true_class in sorted(set(replay["target"]) - {label}):
+            mask = replay["target"].to_numpy() == true_class
+            confusers.append(
+                {
+                    "seed": seed,
+                    "scored_class": label,
+                    "true_negative_class": true_class,
+                    "count": int(mask.sum()),
+                    "mean_probability_delta": float(
+                        (synthetic_scores[mask] - replay_scores[mask]).mean()
+                    ),
+                    "q95_probability_delta": float(
+                        np.quantile(synthetic_scores[mask], 0.95)
+                        - np.quantile(replay_scores[mask], 0.95)
+                    ),
+                }
+            )
+    return ranking, confusers
+
+
+def prediction_diagnostics(
+    project_root: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     records: list[dict[str, Any]] = []
     transitions: list[dict[str, Any]] = []
+    ranking_records: list[dict[str, Any]] = []
+    confuser_records: list[dict[str, Any]] = []
     for replay_path in sorted(project_root.glob("outputs/stage11b_replay_strict_id_convnext_small_384/*/val_predictions_best.csv")):
         seed = infer_seed(replay_path)
         synthetic_paths = list(
@@ -388,6 +468,9 @@ def prediction_diagnostics(project_root: Path) -> tuple[pd.DataFrame, pd.DataFra
         synthetic = pd.read_csv(synthetic_paths[0]).sort_values("path").reset_index(drop=True)
         if not replay[["path", "target"]].equals(synthetic[["path", "target"]]):
             raise ValueError(f"Prediction alignment failed for seed {seed}")
+        ranking, confusers = ranking_tail_diagnostics(replay, synthetic, seed)
+        ranking_records.extend(ranking)
+        confuser_records.extend(confusers)
 
         correct_replay = replay["prediction"] == replay["target"]
         correct_synthetic = synthetic["prediction"] == synthetic["target"]
@@ -427,7 +510,12 @@ def prediction_diagnostics(project_root: Path) -> tuple[pd.DataFrame, pd.DataFra
                     "negative_count": int((~positive).sum()),
                 }
             )
-    return pd.DataFrame(records), pd.DataFrame(transitions)
+    return (
+        pd.DataFrame(records),
+        pd.DataFrame(transitions),
+        pd.DataFrame(ranking_records),
+        pd.DataFrame(confuser_records),
+    )
 
 
 def plot_distribution_metrics(frame: pd.DataFrame, path: Path) -> None:
@@ -554,9 +642,11 @@ def main() -> None:
     )
     frequency_ci.to_csv(out_dir / "frequency_paired_bootstrap.csv", index=False)
 
-    probability, transitions = prediction_diagnostics(project_root)
+    probability, transitions, ranking, confusers = prediction_diagnostics(project_root)
     probability.to_csv(out_dir / "prediction_probability_shifts.csv", index=False)
     transitions.to_csv(out_dir / "argmax_transition_counts.csv", index=False)
+    ranking.to_csv(out_dir / "ranking_tail_diagnostics.csv", index=False)
+    confusers.to_csv(out_dir / "confuser_probability_shifts.csv", index=False)
     plot_distribution_metrics(feature_frame, out_dir / "melanoma_prdc_by_encoder.png")
     plot_probability_shifts(probability, out_dir / "probability_separation_shift.png")
 
