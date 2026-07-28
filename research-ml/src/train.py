@@ -45,7 +45,10 @@ def make_run_dir(config: dict[str, Any]) -> Path:
 def resolve_device(config: dict[str, Any]) -> torch.device:
     requested = config["runtime"]["device"]
     if requested == "cuda" and not torch.cuda.is_available():
-        return torch.device("cpu")
+        raise RuntimeError(
+            "runtime.device=cuda was requested, but CUDA is unavailable. "
+            "Refusing silent CPU fallback; recreate the GPU container and retry."
+        )
     return torch.device(requested)
 
 

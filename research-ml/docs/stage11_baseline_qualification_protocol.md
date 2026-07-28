@@ -377,6 +377,19 @@ training runs проверяются по всем активным MLflow exper
 созданный historical duplicate первого Stage 11 run удалён; live run в
 `HAM10000` сохранён как единственный канонический экземпляр.
 
+После завершения трёх ConvNeXt-Base runs хостовый NVIDIA driver обновился с
+595.71 до 595.84. Уже работающий контейнер сохранил старый injected runtime:
+`nvidia-smi` внутри него возвращал `Failed to initialize NVML`, а новый
+ConvNeXt-Small процесс получил `cuda_available=false`. Предыдущая реализация
+`resolve_device()` молча переводила явный запрос `runtime.device=cuda` на CPU,
+из-за чего семь эпох заняли около 3.5 часов.
+
+CPU pilot `20260728-070735_42` остановлен, помечен в MLflow как `KILLED` и
+переименован с суффиксом `_invalid_cuda_lost_after_driver_reload`. Он не имеет
+`summary.json` и исключён из анализа. Теперь явный CUDA request при
+недоступном GPU завершается fail-fast ошибкой. Добавлен регрессионный тест,
+а pipeline перезапускается в новом контейнере с driver 595.84.
+
 ## Открытые научные вопросы
 
 - Достаточно ли внутреннего HAM10000 validation для выбора representation, или

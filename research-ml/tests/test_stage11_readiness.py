@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 import timm
@@ -10,11 +11,22 @@ from torch import nn
 
 from src.losses import build_loss
 from src.models import create_model
-from src.train import ema_update_step, make_optimizer, make_scheduler, optimizer_group_metadata
+from src.train import (
+    ema_update_step,
+    make_optimizer,
+    make_scheduler,
+    optimizer_group_metadata,
+    resolve_device,
+)
 from tools.check_stage11_gate import expected_stage10
 
 
 class Stage11ReadinessTests(unittest.TestCase):
+    def test_explicit_cuda_request_never_falls_back_to_cpu(self) -> None:
+        with patch("src.train.torch.cuda.is_available", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "Refusing silent CPU fallback"):
+                resolve_device({"runtime": {"device": "cuda"}})
+
     def test_cross_entropy_label_smoothing_is_train_only_opt_in(self) -> None:
         config = {
             "imbalance": {
