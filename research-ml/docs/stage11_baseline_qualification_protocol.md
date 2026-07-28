@@ -333,6 +333,33 @@ Effective batch фиксируется в 32 для full fine-tuning сравн�
 7. Запустить `scripts/start_stage11_container.sh`.
 8. После Stage 11A выбрать final baseline и только затем определить Stage 11B.
 
+## Фактический запуск Stage 11A
+
+Проверка готовности и запуск выполнены 2026-07-28 после фиксации полного
+анализа Stage 10:
+
+- gate открыт: 24/24 Stage 10 runs валидны, `test_evaluated=false`;
+- server environment содержит закреплённые `mlflow==3.14.0`,
+  `nvidia-ml-py==13.610.43`, `torch==2.12.1+cu130` и `timm==1.0.27`;
+- 17/17 server unit tests прошли;
+- ConvNeXt-Small, batch 32, 384 px: peak reserved VRAM 9.41 GiB;
+- DINOv2-B/14 full, batch 16, 392 px: peak reserved VRAM 5.40 GiB;
+- aggregate Stage 10 analysis импортирован в `HAM10000 Reports` без
+  дублирования 77 исторических runs;
+- контейнер `research-stage11-baselines` запущен;
+- первый run:
+  `stage11_real_convnext_base_regularized_384/20260728-045231_42`;
+- resolved config подтверждает seed 42, batch 32 и `run_test=false`;
+- после первой эпохи созданы `metrics.csv`, validation metrics/predictions и
+  `best.pt`;
+- рабочая нагрузка: GPU utilization 100%, 14.05/16.30 GiB VRAM,
+  около 282 W при 66 C;
+- MLflow run имеет состояние `RUNNING` и принимает epoch/system metrics.
+
+Первое значение macro F1 в warmup-эпохе не интерпретируется как результат:
+модель проходит прогрев learning rate. Научное сравнение выполняется только
+после завершения всех трёх seeds и hierarchical lesion-group bootstrap.
+
 ## Открытые научные вопросы
 
 - Достаточно ли внутреннего HAM10000 validation для выбора representation, или
