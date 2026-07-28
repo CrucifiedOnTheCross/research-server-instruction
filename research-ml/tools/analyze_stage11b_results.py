@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import tools.analyze_stage10_results as paired_analysis
 
@@ -75,6 +80,23 @@ def decision_summary(
     }
 
 
+def plot_deltas(paired: pd.DataFrame, out_path: Path) -> None:
+    metrics = ("macro_f1", "mcc", "auprc_ovr_macro", "mel_auprc")
+    subset = paired.set_index("metric").loc[list(metrics)]
+    values = subset["mean_difference_synthetic_minus_replay"].to_numpy(float)
+    colors = ["#2f855a" if value >= 0 else "#c2413b" for value in values]
+    figure, axis = plt.subplots(figsize=(8.5, 4.8), constrained_layout=True)
+    positions = np.arange(len(metrics))
+    axis.bar(positions, values, color=colors)
+    axis.axhline(0, color="black", linewidth=0.8)
+    axis.set_xticks(positions, [metric.replace("_", " ") for metric in metrics])
+    axis.set_ylabel("Synthetic minus source replay")
+    axis.set_title("Stage 11B paired validation deltas")
+    axis.grid(axis="y", alpha=0.25)
+    figure.savefig(out_path, dpi=180, bbox_inches="tight")
+    plt.close(figure)
+
+
 def main() -> None:
     args = parse_args()
     project_root = Path(args.project_root).resolve()
@@ -113,7 +135,7 @@ def main() -> None:
     fixed.to_csv(out_dir / "fixed_specificity_diagnostics.csv", index=False)
     checks.to_csv(out_dir / "artifact_integrity.csv", index=False)
     alignment.to_csv(out_dir / "prediction_alignment.csv", index=False)
-    paired_analysis.plot_deltas(paired, out_dir / "paired_validation_deltas.png")
+    plot_deltas(paired, out_dir / "paired_validation_deltas.png")
 
     summary = {
         "status": "complete",

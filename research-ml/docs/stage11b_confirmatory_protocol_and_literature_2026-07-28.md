@@ -267,6 +267,112 @@ Inference:
 3. `weak/null/negative`: сформулировать статью вокруг отрицательного результата:
    feature-space близость недостаточна, а простое replay не хуже синтетики.
 
+## Фактические результаты
+
+Дата анализа: 2026-07-28.
+
+Статус:
+
+- 6/6 runs завершены;
+- seeds 42, 43, 44 для обоих arms;
+- `test_evaluated=false` во всех runs;
+- validation: 1280 изображений, 599 lesion groups;
+- metric recomputation max absolute error: `8.32e-8`;
+- hierarchical lesion bootstrap: 5000 повторов;
+- prediction alignment и artifact integrity: passed.
+
+### Multi-seed summary
+
+| Arm | Macro F1 | MCC | Balanced acc. | Macro AUPRC | ECE | Mel F1 | Mel AUPRC |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Synthetic strict-ID | 0.7693 ± 0.0095 | 0.6611 ± 0.0123 | 0.7779 ± 0.0092 | 0.7898 ± 0.0184 | 0.1261 | 0.5372 | 0.5024 |
+| Source-matched replay | 0.7577 ± 0.0084 | 0.6515 ± 0.0046 | 0.7678 ± 0.0062 | **0.8034 ± 0.0191** | **0.1026** | 0.5295 | **0.5471** |
+
+### Paired synthetic-minus-replay
+
+| Endpoint | Mean delta | Synthetic wins | 95% seed-t CI |
+|---|---:|---:|---:|
+| Macro F1 | +0.0115 | 3/3 | [-0.0089; +0.0320] |
+| Balanced accuracy | +0.0101 | 3/3 | [-0.0142; +0.0343] |
+| MCC | +0.0096 | 2/3 | [-0.0243; +0.0434] |
+| Macro AUPRC | **-0.0136** | **0/3** | [-0.0336; +0.0063] |
+| Macro AUROC | -0.0094 | 1/3 | [-0.0368; +0.0180] |
+| ECE | **+0.0235 хуже** | **0/3 лучше** | [-0.0215; +0.0685] |
+| Melanoma F1 | +0.0077 | 2/3 | [-0.0735; +0.0889] |
+| Melanoma recall | 0.0000 | 2/3 | [-0.0301; +0.0301] |
+| Melanoma AUPRC | **-0.0447** | **0/3** | **[-0.0885; -0.0009]** |
+| Melanoma AUROC | -0.0051 | 1/3 | [-0.0438; +0.0336] |
+
+Lesion-group bootstrap:
+
+| Endpoint | Mean delta | 95% CI | P(delta > 0) |
+|---|---:|---:|---:|
+| Macro F1 | +0.0120 | [-0.0098; +0.0350] | 0.884 |
+| Balanced accuracy | +0.0101 | [-0.0143; +0.0353] | 0.811 |
+| MCC | +0.0098 | [-0.0155; +0.0352] | 0.780 |
+| Melanoma F1 | +0.0078 | [-0.0407; +0.0527] | 0.650 |
+| Melanoma recall | +0.0004 | [-0.0523; +0.0535] | 0.487 |
+
+Ни один primary endpoint не имеет bootstrap lower CI выше нуля.
+
+### Operating points и calibration
+
+При exploratory specificity 0.90 synthetic имеет mean melanoma sensitivity
+`0.694`, replay `0.685`: разница мала и нестабильна. При specificity 0.95
+synthetic sensitivity ниже: `0.491` против `0.528`; precision также ниже.
+
+Temperature scaling уменьшает ECE у обоих arms, но это group-held-out
+диагностика после validation-based early stopping. Она не исправляет ухудшение
+melanoma ranking и не является confirmatory endpoint.
+
+### Заранее заданное решение
+
+Автоматическая классификация:
+
+`weak_or_unstable_positive`.
+
+Причины:
+
+- глобальное направление macro F1/MCC/balanced accuracy положительное;
+- macro F1 и balanced accuracy положительны на 3/3 seeds;
+- MCC положителен только на 2/3 seeds;
+- bootstrap CI primary endpoints пересекают ноль;
+- macro AUPRC ухудшился на 3/3 seeds;
+- melanoma AUPRC ухудшился на 3/3 seeds, mean delta `-0.0447`;
+- melanoma guardrail не пройден.
+
+Следовательно, сильная гипотеза Stage 11B **не подтверждена**. Strict-ID
+синтетика немного меняет argmax decision geometry, но не демонстрирует
+добавочной ranking information относительно предъявления реальных источников.
+Наблюдаемая комбинация `macro F1 вверх / AUPRC вниз / ECE хуже` совместима с
+изменением порогов и decision boundary, а не с устойчивым улучшением
+представления редких классов.
+
+Locked test не открывается.
+
+## Следующая проверяемая гипотеза
+
+Наиболее обоснованный следующий этап не должен повторять ещё один classifier
+screen с тем же synthetic pool. Сначала требуется диагностировать, почему
+`strict_id` близость не переносится в ranking utility:
+
+1. Посчитать class-wise PRDC density/coverage и Vendi diversity в
+   дерматоскопическом feature space, а не только nearest-real distance.
+2. Проверить texture/high-frequency gap real-vs-synthetic, поскольку
+   высокоуровневая DINOv2 близость может скрывать генеративные артефакты.
+3. Оценить source-conditional novelty: расстояние synthetic до собственного
+   source относительно ближайших real non-source neighbours.
+4. Построить error-overlap и probability-shift анализ synthetic против replay,
+   особенно для `mel`, `akiec` и `bkl`.
+5. Перегенерировать только после определения failure mode: менять diversity,
+   conditioning или strength, сохраняя count/source-matched replay.
+6. Любой новый pool сначала проверять geometry/texture/coverage gate, затем
+   выполнять один малый paired screening без открытия locked test.
+
+Это переводит отрицательный Stage 11B результат в более сильный научный тезис:
+близость к real manifold является недостаточным критерием полезности
+синтетических медицинских изображений.
+
 ## Ограничения
 
 - только три training seeds;

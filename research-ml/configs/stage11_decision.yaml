@@ -14,13 +14,14 @@ stage11:
   selected_stage10_stratum: strict_id
   selected_baseline: configs/ham10000_stage11_convnext_small_regularized_384.yaml
   secondary_architecture: configs/ham10000_stage11_dinov2_base_finetune_392.yaml
-  stage11b_status: running
+  stage11b_status: complete_hypothesis_not_confirmed
   stage11b_comparison: synthetic_strict_id_vs_source_matched_replay
   stage11b_seeds: [42, 43, 44]
   stage11b_configs:
     - configs/ham10000_stage11b_replay_strict_id_convnext_small_384.yaml
     - configs/ham10000_stage11b_synthetic_strict_id_convnext_small_384.yaml
   stage11b_rationale: "Use ConvNeXt-S: it beats ConvNeXt-B on macro F1, MCC, balanced accuracy and macro AUPRC on all three matched seeds while using 49.5M instead of 87.6M parameters. DINOv2 full has higher macro F1 than the old anchor but lower MCC and melanoma F1/AUPRC than ConvNeXt-S, so it remains a secondary representation-sensitivity analysis."
+  stage11b_result: "Strict-ID synthetic improved macro F1 and balanced accuracy on 3/3 seeds, but did not produce a positive lesion-bootstrap CI, improved MCC on only 2/3 seeds, worsened macro AUPRC on 3/3 seeds, and worsened melanoma AUPRC by 0.0447 on 3/3 seeds. The predeclared success criteria failed; locked test remains closed."
   enabled_configs:
     - configs/ham10000_stage11_convnext_base_regularized_384.yaml
     - configs/ham10000_stage11_convnext_small_regularized_384.yaml
