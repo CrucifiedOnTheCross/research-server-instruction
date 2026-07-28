@@ -17,6 +17,9 @@ stage11:
   stage11b_status: approved_not_started
   stage11b_comparison: synthetic_strict_id_vs_source_matched_replay
   stage11b_seeds: [42, 43, 44]
+  stage11b_configs:
+    - configs/ham10000_stage11b_replay_strict_id_convnext_small_384.yaml
+    - configs/ham10000_stage11b_synthetic_strict_id_convnext_small_384.yaml
   stage11b_rationale: "Use ConvNeXt-S: it beats ConvNeXt-B on macro F1, MCC, balanced accuracy and macro AUPRC on all three matched seeds while using 49.5M instead of 87.6M parameters. DINOv2 full has higher macro F1 than the old anchor but lower MCC and melanoma F1/AUPRC than ConvNeXt-S, so it remains a secondary representation-sensitivity analysis."
   enabled_configs:
     - configs/ham10000_stage11_convnext_base_regularized_384.yaml
