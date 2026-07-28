@@ -369,6 +369,14 @@ trajectory: validation macro F1 вырос с 0.114 на эпохе 1 до 0.385
 Следовательно, исправление устранило EMA lag, не изменив ожидаемую динамику
 online baseline. Контейнер оставлен продолжать полный Stage 11A pipeline.
 
+После первого завершённого run дополнительно исправлена идемпотентность
+MLflow backfill. Live tracking сохраняет `source_run_dir` как относительный
+путь, тогда как historical importer использовал абсолютный путь и проверял
+дубликаты только внутри `HAM10000 Historical`. Теперь пути канонизируются, а
+training runs проверяются по всем активным MLflow experiments. Ошибочно
+созданный historical duplicate первого Stage 11 run удалён; live run в
+`HAM10000` сохранён как единственный канонический экземпляр.
+
 ## Открытые научные вопросы
 
 - Достаточно ли внутреннего HAM10000 validation для выбора representation, или

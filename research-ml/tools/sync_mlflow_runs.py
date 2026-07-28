@@ -36,15 +36,23 @@ def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def existing_source_dirs(client: MlflowClient, experiment_id: str) -> set[str]:
-    frame = mlflow.search_runs(
-        experiment_ids=[experiment_id],
-        output_format="pandas",
-        max_results=50000,
-    )
-    if frame.empty or "tags.source_run_dir" not in frame:
-        return set()
-    return set(frame["tags.source_run_dir"].dropna().astype(str))
+def normalize_source_dir(source: str) -> str:
+    return str(Path(source).expanduser().resolve())
+
+
+def existing_source_dirs(
+    client: MlflowClient,
+    experiment_ids: list[str] | None = None,
+) -> set[str]:
+    if experiment_ids is None:
+        experiment_ids = [experiment.experiment_id for experiment in client.search_experiments()]
+    sources: set[str] = set()
+    for experiment_id in experiment_ids:
+        for run in client.search_runs([experiment_id], max_results=50000):
+            source = run.data.tags.get("source_run_dir")
+            if source:
+                sources.add(normalize_source_dir(source))
+    return sources
 
 
 def log_metric_history(client: MlflowClient, run_id: str, metrics_path: Path) -> None:
@@ -81,10 +89,10 @@ def import_runs(outputs: Path, experiment_name: str, force: bool) -> dict[str, i
     client = MlflowClient()
     imported = 0
     skipped = 0
-    known = set() if force else existing_source_dirs(client, experiment.experiment_id)
+    known = set() if force else existing_source_dirs(client)
     for summary_path in sorted(outputs.glob("*/*/summary.json")):
         run_dir = summary_path.parent
-        source = str(run_dir.resolve())
+        source = normalize_source_dir(str(run_dir))
         if source in known:
             skipped += 1
             continue
@@ -128,11 +136,11 @@ def import_reports(outputs: Path, experiment_name: str, force: bool) -> dict[str
         return {"imported": 0, "skipped": 0}
     experiment = mlflow.set_experiment(experiment_name)
     client = MlflowClient()
-    known = set() if force else existing_source_dirs(client, experiment.experiment_id)
+    known = set() if force else existing_source_dirs(client, [experiment.experiment_id])
     imported = 0
     skipped = 0
     for report_dir in sorted(path for path in reports_root.iterdir() if path.is_dir()):
-        source = str(report_dir.resolve())
+        source = normalize_source_dir(str(report_dir))
         if source in known:
             skipped += 1
             continue
