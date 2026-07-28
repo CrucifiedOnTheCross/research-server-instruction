@@ -1,7 +1,7 @@
-status: pending_stage10
-stage10_analysis_reviewed: false
-decision_date: null
-decision_rationale: "Awaiting all Stage 10 runs and paired synthetic-versus-replay analysis."
+status: approved
+stage10_analysis_reviewed: true
+decision_date: "2026-07-28"
+decision_rationale: "Branch B with Branch D guardrails: strict_id improved MCC with lesion-bootstrap CI above zero and macro AUPRC on 3/3 seeds, but macro F1 CI crossed zero and mel recall decreased. Stage 11A qualifies the real-only baseline before one strict_id-versus-replay Stage 11B transfer test."
 
 required_stage10:
   seeds: [42, 43, 44]
@@ -10,6 +10,9 @@ required_stage10:
 
 stage11:
   seeds: [42, 43, 44]
+  selected_stage10_stratum: strict_id
+  stage11b_status: blocked_until_baseline_qualification
+  stage11b_comparison: synthetic_strict_id_vs_source_matched_replay
   enabled_configs:
     - configs/ham10000_stage11_convnext_base_regularized_384.yaml
     - configs/ham10000_stage11_convnext_small_regularized_384.yaml
@@ -17,6 +20,6 @@ stage11:
     - configs/ham10000_stage11_dinov2_base_finetune_392.yaml
 
 decision_rules:
-  retain_stage10_geometry_arm: "Only if its paired lesion-bootstrap interval and multi-seed direction justify follow-up."
+  retain_stage10_geometry_arm: "Retain strict_id only; do not carry aid_radial, ood_far or random_remaining into Stage 11B."
   baseline_promotion: "No candidate is promoted from one seed; use mean, dispersion and lesion-group inference."
   locked_test: "Keep evaluation.run_test=false during Stage 11 screening."

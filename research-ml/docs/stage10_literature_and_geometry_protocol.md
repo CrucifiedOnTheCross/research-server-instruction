@@ -339,3 +339,14 @@ Canonical-signed пакет:
 Промежуточные warm-up метрики не используются для научного вывода. Оценка
 выполняется только после завершения matched synthetic/replay runs всех трех
 seed.
+
+### 2026-07-28: Stage 10 завершён
+
+- 24/24 runs завершены с exit code `0`;
+- все mandatory artifacts присутствуют;
+- `test_evaluated=false` во всех runs;
+- validation predictions совпадают по 1280 изображениям и 599 lesion groups;
+- метрики независимо пересчитаны с максимальной ошибкой `1.08e-7`;
+- выполнен hierarchical lesion-group bootstrap, 5000 повторов;
+- решение и полные результаты:
+  `docs/stage10_results_and_stage11_decision_2026-07-28.md`.

@@ -2,7 +2,12 @@
 
 Дата фиксации: 2026-07-27.
 
-Статус: **код подготовлен, запуск заблокирован до завершения и разбора Stage 10**.
+Статус: **Stage 10 reviewed; Stage 11A approved for launch on 2026-07-28**.
+
+Решение: ветка B с guardrail ветки D. Единственный synthetic-кандидат для
+будущего Stage 11B — `strict_id`, но только после квалификации real-only
+baseline. Полный статистический разбор:
+`docs/stage10_results_and_stage11_decision_2026-07-28.md`.
 
 Результаты Stage 11 публикуются в MLflow, а visual audit synthetic/real
 выполняется в FiftyOne. Самописный HTML results index больше не используется:
