@@ -7,6 +7,7 @@ import pandas as pd
 
 from tools.select_stage13_multiencoder_coverage import (
     greedy_facility_select,
+    selection_capacity,
     selection_gate,
 )
 
@@ -66,6 +67,17 @@ class Stage13SelectionTests(unittest.TestCase):
         )
         result = selection_gate(comparison, selected, frequency_wins=2)
         self.assertTrue(result["gate_open"])
+
+    def test_capacity_requires_enough_unique_sources(self) -> None:
+        candidates = pd.DataFrame(
+            {
+                "source_image_id": ["same"] * 30,
+            }
+        )
+        capacity = selection_capacity(candidates, dose=30)
+        self.assertEqual(capacity["candidate_rows"], 30)
+        self.assertEqual(capacity["unique_sources"], 1)
+        self.assertFalse(capacity["sufficient"])
 
 
 if __name__ == "__main__":

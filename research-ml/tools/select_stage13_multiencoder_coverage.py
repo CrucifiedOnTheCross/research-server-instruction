@@ -232,6 +232,17 @@ def greedy_facility_select(
     return selected
 
 
+def selection_capacity(candidates: pd.DataFrame, dose: int) -> dict[str, Any]:
+    rows = int(len(candidates))
+    unique_sources = int(candidates["source_image_id"].astype(str).nunique())
+    return {
+        "candidate_rows": rows,
+        "unique_sources": unique_sources,
+        "required": int(dose),
+        "sufficient": rows >= dose and unique_sources >= dose,
+    }
+
+
 def selection_gate(
     comparison: pd.DataFrame,
     selected: pd.DataFrame,
@@ -411,6 +422,7 @@ def main() -> None:
 
     selected_parts: list[pd.DataFrame] = []
     selection_metadata: dict[str, Any] = {}
+    shortages: dict[str, Any] = {}
     strict_ids = set(strict["image_id"].astype(str))
     for label in TARGET_CLASSES:
         class_scores = scores[scores["label"].astype(str) == label].copy()
@@ -421,6 +433,17 @@ def main() -> None:
         eligible = class_scores[
             class_scores["stage13_tier"].isin(allowed_tiers)
         ].reset_index()
+        capacity = selection_capacity(eligible, args.dose_per_class)
+        selection_metadata[label] = {
+            "tier_a_rows": int((class_scores["stage13_tier"] == "A").sum()),
+            "tier_a_unique_sources": int(tier_a_sources),
+            "tier_b_rows": int((class_scores["stage13_tier"] == "B").sum()),
+            "allowed_tiers": sorted(allowed_tiers),
+            "capacity": capacity,
+        }
+        if not capacity["sufficient"]:
+            shortages[label] = capacity
+            continue
         class_pool_positions = np.flatnonzero(
             pool["label"].astype(str).to_numpy() == label
         )
@@ -457,13 +480,39 @@ def main() -> None:
         chosen = eligible.iloc[chosen_positions].copy()
         chosen["stage13_rank"] = np.arange(1, len(chosen) + 1)
         selected_parts.append(chosen.drop(columns=["index"]))
-        selection_metadata[label] = {
-            "tier_a_rows": int((class_scores["stage13_tier"] == "A").sum()),
-            "tier_a_unique_sources": int(tier_a_sources),
-            "tier_b_rows": int((class_scores["stage13_tier"] == "B").sum()),
-            "allowed_tiers": sorted(allowed_tiers),
-            "selected_tiers": chosen["stage13_tier"].value_counts().to_dict(),
+        selection_metadata[label]["selected_tiers"] = (
+            chosen["stage13_tier"].value_counts().to_dict()
+        )
+    scores.to_csv(out_dir / "candidate_scores.csv", index=False)
+    if shortages:
+        manifest = {
+            "protocol": "stage13_multiencoder_coverage_targeted",
+            "status": "gate_closed",
+            "locked_test_used": False,
+            "target_classes": list(TARGET_CLASSES),
+            "dose_per_class": args.dose_per_class,
+            "encoders": encoder_names,
+            "selection": selection_metadata,
+            "gate": {
+                "gate_open": False,
+                "reason": "insufficient_predeclared_candidates",
+                "shortages": shortages,
+            },
+            "training_splits_created": False,
+            "inputs": {
+                "real_csv": str(real_path),
+                "real_csv_sha256": sha256(real_path),
+                "pool_csv": str(pool_path),
+                "pool_csv_sha256": sha256(pool_path),
+                "strict_csv": str(strict_path),
+                "strict_csv_sha256": sha256(strict_path),
+            },
         }
+        (out_dir / "stage13_selection_manifest.json").write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8"
+        )
+        print(json.dumps(manifest, indent=2))
+        return
     selected = pd.concat(selected_parts, ignore_index=True)
 
     comparison_rows: list[dict[str, Any]] = []
@@ -534,7 +583,6 @@ def main() -> None:
     )
     replay_rows.to_csv(split_out_dir / "source_replay_rows_coverage_targeted.csv", index=False)
     replay_train.to_csv(split_out_dir / "train_source_replay_coverage_targeted.csv", index=False)
-    scores.to_csv(out_dir / "candidate_scores.csv", index=False)
     comparison.to_csv(out_dir / "selection_comparison.csv", index=False)
     manifest = {
         "protocol": "stage13_multiencoder_coverage_targeted",
@@ -562,4 +610,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
