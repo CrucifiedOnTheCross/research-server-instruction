@@ -10,8 +10,10 @@ from src.datasets import ResizePadToSquare
 class Stage14PProtocolTest(unittest.TestCase):
     def test_resize_pad_preserves_full_frame_and_aspect_ratio(self) -> None:
         image = Image.new("RGB", (600, 450), (200, 10, 20))
-        image.putpixel((0, 225), (255, 0, 0))
-        image.putpixel((599, 225), (0, 255, 0))
+        for x in range(10):
+            for y in range(450):
+                image.putpixel((x, y), (255, 0, 0))
+                image.putpixel((599 - x, y), (0, 255, 0))
         transformed = ResizePadToSquare(384, (124, 116, 104))(image)
         self.assertEqual(transformed.size, (384, 384))
         self.assertEqual(transformed.getpixel((10, 10)), (124, 116, 104))
