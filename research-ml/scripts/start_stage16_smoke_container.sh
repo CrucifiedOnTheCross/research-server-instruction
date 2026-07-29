@@ -29,6 +29,7 @@ docker run -d \
   -e "TORCH_HOME=$WORKDIR/.cache/torch" \
   -e "OMP_NUM_THREADS=24" \
   -e "MKL_NUM_THREADS=24" \
+  -e "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True" \
   "$IMAGE" \
   bash -lc "source .venv/bin/activate && python -m src.train \
     --config configs/isic2019_stage16_real_ce_natural_384.yaml \

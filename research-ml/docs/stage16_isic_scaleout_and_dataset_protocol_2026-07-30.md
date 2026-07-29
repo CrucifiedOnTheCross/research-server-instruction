@@ -581,6 +581,21 @@ accuracy, ECE, worst-class recall, melanoma и SCC AUPRC.
 perceptual embeddings остаётся отдельным анализом и не должен автоматически
 менять locked split.
 
+### GPU smoke и фактический batch
+
+Первый smoke с ConvNeXt-S 384 и physical batch 64 завершился ожидаемо
+контролируемым OOM до создания epoch metrics: процесс использовал 15.40 GiB
+из доступных 15.47 GiB и не смог выделить ещё 54 MiB. Невалидный smoke run
+не включается в научные сводки.
+
+Для RTX 5080 16 GB physical batch зафиксирован равным 48 для всех Stage 16B
+arms. Добавлен `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
+Сопоставимость arms сохраняется, потому что batch, scheduler и optimizer
+одинаковы; изменение является hardware qualification, выполненным до
+screening. Полный запуск разрешается только после успешного повторного smoke
+с `summary.json`, `val_metrics_best.json`, checkpoint и
+`test_evaluated=false`.
+
 ## Использованные источники
 
 1. ISIC Challenge Datasets. Official releases, metadata, duplicate lists and

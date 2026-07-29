@@ -34,7 +34,7 @@ augmentation:
 
 training:
   epochs: 60
-  batch_size: 64
+  batch_size: 48
   accumulation_steps: 1
   lr: 0.0001
   layer_decay: 0.925

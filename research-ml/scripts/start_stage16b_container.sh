@@ -43,6 +43,7 @@ docker run -d \
   -e "TORCH_HOME=$WORKDIR/.cache/torch" \
   -e "OMP_NUM_THREADS=24" \
   -e "MKL_NUM_THREADS=24" \
+  -e "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True" \
   "$IMAGE" \
   bash -lc "source .venv/bin/activate && set -o pipefail && bash scripts/run_stage16b_isic2019_baselines.sh 2>&1 | tee 'server-logs/stage16b_$STAMP.log'"
 
