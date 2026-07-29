@@ -14,11 +14,12 @@ from tools.select_stage13_multiencoder_coverage import (
 
 
 class Stage13SelectionTests(unittest.TestCase):
-    def test_facility_selection_enforces_unique_sources(self) -> None:
+    def test_facility_selection_enforces_unique_source_groups(self) -> None:
         candidates = pd.DataFrame(
             {
                 "image_id": ["a1", "a2", "b1"],
-                "source_image_id": ["a", "a", "b"],
+                "source_image_id": ["a1", "a2", "b1"],
+                "source_group_id": ["lesion_a", "lesion_a", "lesion_b"],
                 "stage13_quality_score": [1.0, 0.9, 0.8],
             }
         )
@@ -28,9 +29,9 @@ class Stage13SelectionTests(unittest.TestCase):
         chosen = greedy_facility_select(
             candidates, similarity, np.ones(2), dose=2
         )
-        sources = candidates.iloc[chosen]["source_image_id"].tolist()
-        self.assertEqual(len(set(sources)), 2)
-        self.assertEqual(set(sources), {"a", "b"})
+        groups = candidates.iloc[chosen]["source_group_id"].tolist()
+        self.assertEqual(len(set(groups)), 2)
+        self.assertEqual(set(groups), {"lesion_a", "lesion_b"})
 
     def test_gate_rejects_fidelity_tradeoff(self) -> None:
         comparison = pd.DataFrame(
@@ -44,6 +45,7 @@ class Stage13SelectionTests(unittest.TestCase):
             {
                 "label": sum(([label] * 30 for label in ("mel", "akiec", "bkl")), []),
                 "source_image_id": [f"source_{index}" for index in range(90)],
+                "source_group_id": [f"lesion_{index}" for index in range(90)],
                 "stage13_tier": ["A"] * 90,
             }
         )
@@ -63,21 +65,24 @@ class Stage13SelectionTests(unittest.TestCase):
             {
                 "label": sum(([label] * 30 for label in ("mel", "akiec", "bkl")), []),
                 "source_image_id": [f"source_{index}" for index in range(90)],
+                "source_group_id": [f"lesion_{index}" for index in range(90)],
                 "stage13_tier": ["A"] * 60 + ["B"] * 30,
             }
         )
         result = selection_gate(comparison, selected, frequency_wins=2)
         self.assertTrue(result["gate_open"])
 
-    def test_capacity_requires_enough_unique_sources(self) -> None:
+    def test_capacity_requires_enough_unique_source_groups(self) -> None:
         candidates = pd.DataFrame(
             {
-                "source_image_id": ["same"] * 30,
+                "source_image_id": [f"image_{index}" for index in range(30)],
+                "source_group_id": ["same_lesion"] * 30,
             }
         )
         capacity = selection_capacity(candidates, dose=30)
         self.assertEqual(capacity["candidate_rows"], 30)
-        self.assertEqual(capacity["unique_sources"], 1)
+        self.assertEqual(capacity["unique_sources"], 30)
+        self.assertEqual(capacity["unique_source_groups"], 1)
         self.assertFalse(capacity["sufficient"])
 
     def test_external_strict_controls_are_not_selection_candidates(self) -> None:

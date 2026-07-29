@@ -225,15 +225,17 @@ def greedy_facility_select(
         raise ValueError(f"Only {len(candidates)} candidates for dose {dose}")
     current = np.zeros(similarity.shape[1], dtype=np.float32)
     selected: list[int] = []
-    used_sources: set[str] = set()
+    used_source_groups: set[str] = set()
     available = list(range(len(candidates)))
     quality = candidates["stage13_quality_score"].to_numpy(float)
     image_ids = candidates["image_id"].astype(str).to_numpy()
-    sources = candidates["source_image_id"].astype(str).to_numpy()
+    source_groups = candidates.get(
+        "source_group_id", candidates["source_image_id"]
+    ).astype(str).to_numpy()
     for _ in range(dose):
         best: tuple[float, float, str, int] | None = None
         for position in available:
-            if sources[position] in used_sources:
+            if source_groups[position] in used_source_groups:
                 continue
             gain = float(
                 np.sum(weights * np.maximum(similarity[position] - current, 0.0))
@@ -244,10 +246,12 @@ def greedy_facility_select(
             ):
                 best = key
         if best is None:
-            raise ValueError("Source uniqueness prevents completing facility selection")
+            raise ValueError(
+                "Source-group uniqueness prevents completing facility selection"
+            )
         position = best[3]
         selected.append(position)
-        used_sources.add(sources[position])
+        used_source_groups.add(source_groups[position])
         current = np.maximum(current, similarity[position])
         available.remove(position)
     return selected
@@ -256,11 +260,16 @@ def greedy_facility_select(
 def selection_capacity(candidates: pd.DataFrame, dose: int) -> dict[str, Any]:
     rows = int(len(candidates))
     unique_sources = int(candidates["source_image_id"].astype(str).nunique())
+    source_groups = candidates.get(
+        "source_group_id", candidates["source_image_id"]
+    ).astype(str)
+    unique_source_groups = int(source_groups.nunique())
     return {
         "candidate_rows": rows,
         "unique_sources": unique_sources,
+        "unique_source_groups": unique_source_groups,
         "required": int(dose),
-        "sufficient": rows >= dose and unique_sources >= dose,
+        "sufficient": rows >= dose and unique_source_groups >= dose,
     }
 
 
@@ -278,6 +287,12 @@ def selection_gate(
         "balanced_dose": selected["label"].value_counts().to_dict()
         == {label: 30 for label in TARGET_CLASSES},
         "unique_sources": int(selected["source_image_id"].nunique()) == 90,
+        "unique_source_groups": int(
+            selected.get("source_group_id", selected["source_image_id"])
+            .astype(str)
+            .nunique()
+        )
+        == 90,
         "coverage_wins_at_least_8_of_12": coverage_wins >= 8,
         "mean_coverage_positive": mean_coverage > 0,
         "mean_precision_not_below_margin": mean_precision >= -0.05,
