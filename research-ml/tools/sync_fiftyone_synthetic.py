@@ -17,13 +17,26 @@ FLOAT_FIELDS = (
     "feature_margin",
     "nearest_synthetic_distance",
     "geometry_score",
+    "stage13_quality_score",
+    "frequency_max_abs_z",
+    "frequency_source_distance",
 )
-INT_FIELDS = ("seed", "inference_steps", "stage10_rank")
+INT_FIELDS = (
+    "seed",
+    "inference_steps",
+    "stage10_rank",
+    "stage13_rank",
+    "inside_count",
+    "positive_margin_count",
+    "novelty_band_count",
+)
 BOOL_FIELDS = (
     "inside_real_manifold",
     "passes_geometry_filter",
     "selected_by_stage6",
     "stage10_selected",
+    "stage13_candidate_eligible",
+    "stage13_selected",
 )
 TEXT_FIELDS = (
     "image_id",
@@ -35,6 +48,7 @@ TEXT_FIELDS = (
     "negative_prompt",
     "preprocess_mode",
     "stage10_stratum",
+    "stage13_tier",
 )
 
 
@@ -124,6 +138,7 @@ def build_dataset(
             "before_selection": "role == synthetic",
             "stage6_selected": "role == synthetic and selected_by_stage6 == true",
             "stage10_selected": "role == synthetic and stage10_selected == true",
+            "stage13_selected": "role == synthetic and stage13_selected == true",
         },
     }
     dataset.save()

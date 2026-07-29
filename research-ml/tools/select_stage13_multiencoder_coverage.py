@@ -457,6 +457,7 @@ def main() -> None:
         + scores["novelty_band_count"] / ENCODER_COUNT
         - 0.05 * scores["frequency_source_distance"]
     )
+    scores["stage13_selected"] = 0
 
     selected_parts: list[pd.DataFrame] = []
     selection_metadata: dict[str, Any] = {}
@@ -561,6 +562,12 @@ def main() -> None:
         print(json.dumps(manifest, indent=2))
         return
     selected = pd.concat(selected_parts, ignore_index=True)
+    selected_ids = set(selected["image_id"].astype(str))
+    scores.loc[
+        scores["image_id"].astype(str).isin(selected_ids),
+        "stage13_selected",
+    ] = 1
+    scores.to_csv(out_dir / "candidate_scores.csv", index=False)
 
     comparison_rows: list[dict[str, Any]] = []
     union_sources = set(selected["source_image_id"].astype(str)) | set(

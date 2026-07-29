@@ -281,6 +281,12 @@ Stage 13B запускается как paired confirmatory comparison:
 запуске не добавлял project root в `sys.path`. Импорт исправлен до запуска
 обучения; structured inputs и результаты Stage 13A3 не изменялись.
 
+Для визуального аудита полный `candidate_scores.csv` дополнен флагом
+`stage13_selected`, а persistent FiftyOne dataset хранит Tier, rank,
+multi-encoder vote counts и frequency diagnostics. Каноническими численными
+источниками остаются CSV/JSON; FiftyOne используется только как paired visual
+inspection layer.
+
 Новая ссылка:
 
 - Liang Y., Bhardwaj S., Zhou T. *Diffusion Curriculum:
