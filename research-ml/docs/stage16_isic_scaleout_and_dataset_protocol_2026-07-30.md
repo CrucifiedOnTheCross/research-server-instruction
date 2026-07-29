@@ -596,6 +596,38 @@ screening. Полный запуск разрешается только пос�
 с `summary.json`, `val_metrics_best.json`, checkpoint и
 `test_evaluated=false`.
 
+### Фактический запуск 2026-07-30
+
+После исправления protocol v2 data gate открыт:
+
+- official rows: 25 331;
+- usable: 25 327;
+- quarantine: 4 exact-duplicate/label-conflict rows;
+- connected groups: 13 926;
+- train/validation/locked test: 17 729 / 3 799 / 3 799;
+- locked test не вычислялся;
+- все 8 классов присутствуют во всех splits.
+
+Повторный smoke с batch 48 завершился с exit code 0 за 5.7 s training
+time. Созданы `summary.json`, `val_metrics_best.json`,
+`val_predictions_best.csv`, `best.pt`, model/sampling/environment artifacts;
+`weights_source=ema`, `test_evaluated=false`.
+
+Stage 16B screening запущен в контейнере
+`research-stage16b-isic2019`. Первый run:
+`stage16_isic2019_real_ce_natural_384`, seed 42. При запуске наблюдались
+98-99% GPU utilization, 14.6 GB VRAM и до 278 W. После двух эпох:
+
+- train loss: 1.653 -> 1.194;
+- validation macro AUPRC: 0.187 -> 0.395;
+- validation macro AUROC: 0.627 -> 0.877;
+- validation MCC: 0.131 -> 0.484;
+- ECE: 0.049 -> 0.030.
+
+Эти ранние значения используются только как execution sanity check, а не
+как научный результат. Канонический вывод делается после завершения
+заранее заданных arms и multi-seed подтверждения.
+
 ## Использованные источники
 
 1. ISIC Challenge Datasets. Official releases, metadata, duplicate lists and
