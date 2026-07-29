@@ -54,6 +54,16 @@ REQUIRED_ARTIFACTS = (
 )
 
 
+def latest_run_by_seed(experiment_dir: Path) -> dict[int, Path]:
+    runs: dict[int, Path] = {}
+    for path in sorted(experiment_dir.glob("*_*")):
+        suffix = path.name.rsplit("_", 1)[-1]
+        if not path.is_dir() or not suffix.isdigit():
+            continue
+        runs[int(suffix)] = path
+    return runs
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Analyze completed Stage 10 geometry strata.")
     parser.add_argument("--project-root", default=".")
@@ -91,8 +101,7 @@ def load_runs(
     for stratum in STRATA:
         for arm in ARMS:
             experiment = experiment_name(arm, stratum)
-            candidates = sorted((outputs / experiment).glob("*_*"))
-            by_seed = {int(path.name.rsplit("_", 1)[-1]): path for path in candidates}
+            by_seed = latest_run_by_seed(outputs / experiment)
             if set(by_seed) != set(SEEDS):
                 raise ValueError(f"{experiment}: expected seeds {SEEDS}, found {sorted(by_seed)}")
             for seed in SEEDS:
@@ -332,10 +341,7 @@ def load_calibration(project_root: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     for stratum in STRATA:
         for arm in ARMS:
             experiment = experiment_name(arm, stratum)
-            by_seed = {
-                int(path.name.rsplit("_", 1)[-1]): path
-                for path in (project_root / "outputs" / experiment).glob("*_*")
-            }
+            by_seed = latest_run_by_seed(project_root / "outputs" / experiment)
             for seed in SEEDS:
                 path = by_seed[seed] / "calibration_diagnostic" / "calibration_diagnostic.json"
                 report = json.loads(path.read_text(encoding="utf-8"))
