@@ -150,6 +150,16 @@ class Stage16ISIC2019Tests(unittest.TestCase):
         )(image)
         self.assertEqual(cropped.size, image.size)
 
+    def test_dark_field_crop_ignores_trivial_border(self) -> None:
+        image = Image.new("RGB", (100, 100), (60, 80, 100))
+        image.paste((0, 0, 0), (0, 0, 100, 1))
+        cropped = CropDarkFieldOfView(
+            threshold=8,
+            margin_fraction=0.0,
+            min_removed_fraction=0.02,
+        )(image)
+        self.assertEqual(cropped.size, image.size)
+
 
 if __name__ == "__main__":
     unittest.main()

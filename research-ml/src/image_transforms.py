@@ -10,16 +10,20 @@ class CropDarkFieldOfView:
         threshold: int = 8,
         margin_fraction: float = 0.02,
         analysis_size: int = 512,
+        min_removed_fraction: float = 0.01,
     ) -> None:
         self.threshold = int(threshold)
         self.margin_fraction = float(margin_fraction)
         self.analysis_size = int(analysis_size)
+        self.min_removed_fraction = float(min_removed_fraction)
         if not 0 <= self.threshold <= 255:
             raise ValueError("threshold must be between 0 and 255")
         if not 0 <= self.margin_fraction <= 0.25:
             raise ValueError("margin_fraction must be between 0 and 0.25")
         if self.analysis_size < 32:
             raise ValueError("analysis_size must be at least 32")
+        if not 0 <= self.min_removed_fraction <= 0.25:
+            raise ValueError("min_removed_fraction must be between 0 and 0.25")
 
     def __call__(self, image: Image.Image) -> Image.Image:
         rgb = image.convert("RGB")
@@ -46,5 +50,10 @@ class CropDarkFieldOfView:
         if left == 0 and top == 0 and right == rgb.width and bottom == rgb.height:
             return rgb
         if (right - left) * (bottom - top) < 0.25 * rgb.width * rgb.height:
+            return rgb
+        retained_fraction = (
+            (right - left) * (bottom - top) / (rgb.width * rgb.height)
+        )
+        if 1.0 - retained_fraction < self.min_removed_fraction:
             return rgb
         return rgb.crop((left, top, right, bottom))

@@ -116,6 +116,7 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
                     train_aug.get("dark_field_threshold", 8),
                     train_aug.get("dark_field_margin_fraction", 0.02),
                     train_aug.get("dark_field_analysis_size", 512),
+                    train_aug.get("dark_field_min_removed_fraction", 0.01),
                 )
             )
         if train_aug.get("aspect_preserving_pad", False):
@@ -145,6 +146,7 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
                     eval_aug.get("dark_field_threshold", 8),
                     eval_aug.get("dark_field_margin_fraction", 0.02),
                     eval_aug.get("dark_field_analysis_size", 512),
+                    eval_aug.get("dark_field_min_removed_fraction", 0.01),
                 )
             )
         if eval_aug.get("aspect_preserving_pad", False) and eval_aug["center_crop"]:

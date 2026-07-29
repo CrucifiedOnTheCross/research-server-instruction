@@ -33,6 +33,7 @@ augmentation:
     dark_field_threshold: 8
     dark_field_margin_fraction: 0.02
     dark_field_analysis_size: 512
+    dark_field_min_removed_fraction: 0.01
     aspect_preserving_pad: true
     random_resized_crop: false
   eval:
@@ -40,6 +41,7 @@ augmentation:
     dark_field_threshold: 8
     dark_field_margin_fraction: 0.02
     dark_field_analysis_size: 512
+    dark_field_min_removed_fraction: 0.01
     aspect_preserving_pad: true
     resize: 384
     center_crop: false
