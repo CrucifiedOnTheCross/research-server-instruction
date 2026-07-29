@@ -7,6 +7,7 @@ import pandas as pd
 
 from tools.select_stage13_multiencoder_coverage import (
     greedy_facility_select,
+    include_strict_controls,
     selection_capacity,
     selection_gate,
 )
@@ -78,6 +79,27 @@ class Stage13SelectionTests(unittest.TestCase):
         self.assertEqual(capacity["candidate_rows"], 30)
         self.assertEqual(capacity["unique_sources"], 1)
         self.assertFalse(capacity["sufficient"])
+
+    def test_external_strict_controls_are_not_selection_candidates(self) -> None:
+        candidates = pd.DataFrame(
+            {
+                "image_id": ["new_1"],
+                "label": ["mel"],
+                "source_image_id": ["source_1"],
+            }
+        )
+        strict = pd.DataFrame(
+            {
+                "image_id": ["strict_1"],
+                "label": ["mel"],
+                "source_image_id": ["source_2"],
+            }
+        )
+        combined = include_strict_controls(candidates, strict)
+        eligibility = combined.set_index("image_id")[
+            "stage13_candidate_eligible"
+        ].to_dict()
+        self.assertEqual(eligibility, {"new_1": 1, "strict_1": 0})
 
 
 if __name__ == "__main__":

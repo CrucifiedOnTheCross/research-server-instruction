@@ -112,6 +112,14 @@ def make_negative_prompt(label: str, config: dict[str, Any]) -> str:
     return ", ".join(part for part in parts if part)
 
 
+def task_image_stem(task: dict[str, Any]) -> str:
+    strength_tag = f"{float(task['strength']):.2f}".replace(".", "p")
+    return (
+        f"{task['label']}_{task['source_id']}_s{strength_tag}_"
+        f"{int(task['index']):02d}_{int(task['seed'])}"
+    )
+
+
 def main() -> None:
     args = parse_args()
     cfg = read_config(args.config)
@@ -121,15 +129,15 @@ def main() -> None:
 
     data_root = Path(args.data_root)
     train_rows = read_rows(data_root / args.train_csv)
-    target_classes = set(cfg["target_classes"])
+    target_classes = sorted(set(cfg["target_classes"]))
     rng = random.Random(int(cfg["seed"]))
 
     by_class: dict[str, list[dict[str, str]]] = {label: [] for label in target_classes}
     for row in train_rows:
         if int(row.get("is_synthetic", 0)) == 0 and row["label"] in target_classes:
             by_class[row["label"]].append(row)
-    for rows in by_class.values():
-        rng.shuffle(rows)
+    for label in target_classes:
+        rng.shuffle(by_class[label])
 
     selected: list[dict[str, str]] = []
     for label in sorted(by_class):
@@ -143,6 +151,12 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / "synthetic_manifest.csv"
     metadata_path = out_dir / "generation_config.resolved.yaml"
+    if manifest_path.exists() and metadata_path.exists():
+        previous_cfg = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+        if previous_cfg != cfg:
+            raise ValueError(
+                "Refusing to resume generation with a different resolved config"
+            )
     metadata_path.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     strengths = [float(value) for value in cfg.get("strengths", [cfg["strength"]])]
@@ -182,10 +196,24 @@ def main() -> None:
                 )
 
     synthetic_rows: list[dict[str, Any]] = []
+    if manifest_path.exists():
+        synthetic_rows = read_rows(manifest_path)
+    existing_by_id = {
+        str(row["image_id"]): row
+        for row in synthetic_rows
+        if (data_root / str(row["image_path"])).is_file()
+    }
+    if len(existing_by_id) != len(synthetic_rows):
+        synthetic_rows = list(existing_by_id.values())
     batch_size = max(1, int(cfg.get("batch_size", 1)))
     task_batches: list[list[dict[str, Any]]] = []
     for strength in strengths:
-        strength_tasks = [task for task in tasks if float(task["strength"]) == strength]
+        strength_tasks = [
+            task
+            for task in tasks
+            if float(task["strength"]) == strength
+            and task_image_stem(task) not in existing_by_id
+        ]
         strength_tasks.sort(key=lambda task: (str(task["label"]), str(task["source_id"])))
         task_batches.extend(
             strength_tasks[offset : offset + batch_size]
@@ -214,10 +242,9 @@ def main() -> None:
             label = str(task["label"])
             source_id = str(task["source_id"])
             seed = int(task["seed"])
-            strength_tag = f"{float(task['strength']):.2f}".replace(".", "p")
             label_dir = out_dir / label
             label_dir.mkdir(parents=True, exist_ok=True)
-            out_name = f"{label}_{source_id}_s{strength_tag}_{int(task['index']):02d}_{seed}.{extension}"
+            out_name = f"{task_image_stem(task)}.{extension}"
             out_path = label_dir / out_name
             if extension == "png":
                 image.save(out_path, format="PNG", optimize=True)

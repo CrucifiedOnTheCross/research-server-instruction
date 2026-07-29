@@ -142,3 +142,57 @@ Gate открывается только если:
 Existing `strict_id` не переобучается: Stage 11B остаётся историческим
 контролем. Primary и minority endpoints совпадают со Stage 11B.
 
+## Фактический Stage 13A на исходном pool
+
+Дата: 2026-07-29.
+
+Все четыре encoder caches и frequency features успешно рассчитаны. Первый
+запуск остановился на попытке выбрать 30 строк; pipeline исправлен так, чтобы
+candidate shortage создавал structured fail-closed manifest, а не traceback.
+
+Gate закрыт:
+
+| Class | Tier A rows | Tier B rows | A+B rows | Unique sources | Required |
+|---|---:|---:|---:|---:|---:|
+| mel | 8 | 21 | 29 | 26 | 30 |
+| akiec | 60 | 67 | Tier A достаточно | 59 Tier A | 30 |
+| bkl | 2 | 9 | 11 | 11 | 30 |
+
+Training CSV не создан, Stage 13B не запущен.
+
+Основные bottlenecks:
+
+- `bkl`: Tier A novelty проходит 1.7%, positive margin 20.2%;
+- `mel`: Tier A novelty проходит 4.2%, positive margin 34.6%;
+- frequency max-z проходит 83.5–90.8%, поэтому frequency gate не является
+  главным источником shortage;
+- почти все допустимые строки имеют strength 0.15;
+- strength 0.45 не даёт ни одного A/B кандидата для `mel` и `bkl`;
+- task-space local novelty ratio монотонно растёт со strength.
+
+Это подтверждает, что исходный минимум strength 0.15 уже слишком сильно
+сдвигает `mel/bkl` в real-only ConvNeXt-S spaces.
+
+## Stage 13A2: low-strength regeneration
+
+Проверяется только один новый фактор:
+
+- strengths: 0.05 и 0.10 вместо 0.15, 0.30, 0.45;
+- те же Stable Diffusion 1.5, prompts и negative prompts;
+- guidance scale 6.0;
+- 30 inference steps;
+- center crop 512;
+- те же target classes;
+- 160 deterministic real sources на класс;
+- один вариант на source и strength;
+- всего 960 изображений.
+
+После генерации применяется тот же multi-encoder/frequency gate без изменения
+порогов. Новые изображения не смешиваются с исходным pool при facility
+selection; старый `strict_id` добавляется только как evaluation control.
+
+Реализация генерации поддерживает идемпотентное продолжение после остановки:
+готовые файлы с валидными строками manifest не генерируются повторно. Resume
+разрешён только при полном совпадении resolved config. Порядок классов и
+соответствие seed исходному изображению явно детерминированы и не зависят от
+`PYTHONHASHSEED`.

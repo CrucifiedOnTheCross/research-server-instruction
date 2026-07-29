@@ -50,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=12)
     parser.add_argument("--prdc-k", type=int, default=5)
+    parser.add_argument("--expected-pool-size", type=int, default=0)
     return parser.parse_args()
 
 
@@ -65,6 +66,22 @@ def robust_scale(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     median = np.median(values, axis=0)
     mad = np.median(np.abs(values - median), axis=0)
     return median, np.maximum(1.4826 * mad, 1e-6)
+
+
+def include_strict_controls(
+    candidate_pool: pd.DataFrame,
+    strict: pd.DataFrame,
+) -> pd.DataFrame:
+    pool = candidate_pool.copy()
+    pool["stage13_candidate_eligible"] = 1
+    candidate_ids = set(pool["image_id"].astype(str))
+    missing_controls = strict[
+        ~strict["image_id"].astype(str).isin(candidate_ids)
+    ].copy()
+    if not missing_controls.empty:
+        missing_controls["stage13_candidate_eligible"] = 0
+        pool = pd.concat([pool, missing_controls], ignore_index=True, sort=False)
+    return pool.reset_index(drop=True)
 
 
 def score_encoder(
@@ -170,14 +187,15 @@ def add_frequency_scores(
         real_values = real_frequency.loc[real_ids, metrics].to_numpy(float)
         median, scale = robust_scale(real_values)
         class_pool = pool[pool["label"].astype(str) == label]
-        source_distances: list[float] = []
+        candidate_source_distances: list[float] = []
         staged: list[dict[str, Any]] = []
         for _, row in class_pool.iterrows():
             values = synth_frequency.loc[str(row["image_id"]), metrics].to_numpy(float)
             source_values = real_frequency.loc[str(row["source_image_id"]), metrics].to_numpy(float)
             z = np.abs((values - median) / scale)
             source_distance = float(np.sqrt(np.mean(((values - source_values) / scale) ** 2)))
-            source_distances.append(source_distance)
+            if int(row.get("stage13_candidate_eligible", 1)) == 1:
+                candidate_source_distances.append(source_distance)
             staged.append(
                 {
                     "image_id": str(row["image_id"]),
@@ -185,8 +203,10 @@ def add_frequency_scores(
                     "frequency_source_distance": source_distance,
                 }
             )
-        q50 = float(np.quantile(source_distances, 0.50))
-        q75 = float(np.quantile(source_distances, 0.75))
+        if not candidate_source_distances:
+            raise ValueError(f"No eligible Stage 13 candidates for {label}")
+        q50 = float(np.quantile(candidate_source_distances, 0.50))
+        q75 = float(np.quantile(candidate_source_distances, 0.75))
         for record in staged:
             record["frequency_source_q50"] = q50
             record["frequency_source_q75"] = q75
@@ -293,9 +313,18 @@ def main() -> None:
         pool_path = resolve(data_root, args.pool_csv)
     strict_path = resolve(data_root, args.strict_csv)
     real_path = resolve(data_root, args.real_csv)
-    pool = pd.read_csv(pool_path)
-    pool = pool[pool["label"].astype(str).isin(TARGET_CLASSES)].reset_index(drop=True)
+    candidate_pool = pd.read_csv(pool_path)
+    candidate_pool = candidate_pool[
+        candidate_pool["label"].astype(str).isin(TARGET_CLASSES)
+    ].reset_index(drop=True)
+    if candidate_pool["image_id"].astype(str).duplicated().any():
+        raise ValueError("Stage 13 candidate pool contains duplicate image_id values")
+    if args.expected_pool_size and len(candidate_pool) != args.expected_pool_size:
+        raise ValueError(
+            f"Expected {args.expected_pool_size} candidates, found {len(candidate_pool)}"
+        )
     strict = pd.read_csv(strict_path)
+    pool = include_strict_controls(candidate_pool, strict)
     real = pd.read_csv(real_path)
     real = real[real["is_synthetic"].astype(int) == 0].reset_index(drop=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -425,7 +454,10 @@ def main() -> None:
     shortages: dict[str, Any] = {}
     strict_ids = set(strict["image_id"].astype(str))
     for label in TARGET_CLASSES:
-        class_scores = scores[scores["label"].astype(str) == label].copy()
+        class_scores = scores[
+            (scores["label"].astype(str) == label)
+            & (scores["stage13_candidate_eligible"].astype(int) == 1)
+        ].copy()
         tier_a_sources = class_scores[class_scores["stage13_tier"] == "A"][
             "source_image_id"
         ].nunique()
@@ -457,11 +489,13 @@ def main() -> None:
         strict_coverage_votes = np.zeros(
             distances["dino"][label].shape[1], dtype=int
         )
+        strict_global_positions = np.flatnonzero(
+            (pool["label"].astype(str).to_numpy() == label)
+            & pool["image_id"].astype(str).isin(strict_ids).to_numpy()
+        )
         strict_class_positions = [
             int(np.flatnonzero(class_pool_positions == index)[0])
-            for index in class_scores[
-                class_scores["image_id"].astype(str).isin(strict_ids)
-            ].index
+            for index in strict_global_positions
         ]
         for name in encoder_names:
             matrix = distances[name][label]
