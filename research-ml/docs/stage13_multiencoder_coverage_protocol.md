@@ -277,6 +277,10 @@ Stage 13B запускается как paired confirmatory comparison:
 - early stopping только по validation;
 - `evaluation.run_test=false`.
 
+Предстартовая проверка выявила, что `check_stage13b_gate.py` при прямом
+запуске не добавлял project root в `sys.path`. Импорт исправлен до запуска
+обучения; structured inputs и результаты Stage 13A3 не изменялись.
+
 Новая ссылка:
 
 - Liang Y., Bhardwaj S., Zhou T. *Diffusion Curriculum:
