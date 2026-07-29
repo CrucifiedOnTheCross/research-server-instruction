@@ -155,7 +155,6 @@ def variant_row(
         "source_image_id": str(source["source_image_id"]),
         "source_group_id": str(source["source_group_id"]),
         "stage15a_variant": variant,
-        "sample_weight": 0.5,
     }
 
 
@@ -267,7 +266,6 @@ def normalize_img2img_rows(rows: pd.DataFrame) -> pd.DataFrame:
     normalized = rows.copy()
     normalized["is_synthetic"] = 1
     normalized["stage15a_variant"] = "sd15_img2img_strength05"
-    normalized["sample_weight"] = 0.5
     return normalized
 
 

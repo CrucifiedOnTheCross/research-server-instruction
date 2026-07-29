@@ -70,8 +70,11 @@ class CsvImageDataset(Dataset):
             self.frame[synthetic_col] = 0
         if sample_weight_col not in self.frame.columns:
             self.frame[sample_weight_col] = 1.0
-        if (self.frame[sample_weight_col].astype(float) <= 0).any():
-            raise ValueError(f"{self.csv_path}: {sample_weight_col} must contain positive values")
+        sample_weights = self.frame[sample_weight_col].astype(float)
+        if not np.isfinite(sample_weights).all() or (sample_weights <= 0).any():
+            raise ValueError(
+                f"{self.csv_path}: {sample_weight_col} must contain finite positive values"
+            )
         if not allow_synthetic:
             self.frame = self.frame[self.frame[synthetic_col].astype(int) == 0].reset_index(drop=True)
 

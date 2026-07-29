@@ -127,6 +127,31 @@ class Stage9ControlTests(unittest.TestCase):
             )
             self.assertEqual(dataset[0]["sample_weight"], 0.25)
 
+    def test_dataset_rejects_non_finite_sample_weight(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            pd.DataFrame(
+                [
+                    {
+                        "image_path": "unused.jpg",
+                        "label": "mel",
+                        "is_synthetic": 0,
+                        "sample_weight": np.nan,
+                    }
+                ]
+            ).to_csv(root / "data.csv", index=False)
+            with self.assertRaisesRegex(ValueError, "finite positive"):
+                CsvImageDataset(
+                    root / "data.csv",
+                    root,
+                    "image_path",
+                    "label",
+                    "is_synthetic",
+                    "sample_weight",
+                    {"mel": 0},
+                    transform=None,
+                )
+
     def test_classifier_only_freezes_encoder_and_reinitializes_head(self) -> None:
         model = TinyClassifier()
         old_head_weight = model.head.weight.detach().clone()

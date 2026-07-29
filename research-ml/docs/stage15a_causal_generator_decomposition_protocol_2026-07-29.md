@@ -193,3 +193,20 @@ Secondary endpoints:
 - `scripts/run_stage15a_analysis.sh`;
 - четыре `configs/ham10000_stage15a_*.yaml`.
 
+## Исправление запуска 2026-07-29
+
+Первый run arm A seed 42 завершился валидно. При старте arm B gate не заметил,
+что подготовленные addition rows содержали `sample_weight=0.5`, тогда как у
+base rows после CSV concat образовался `NaN`. Dataset loader проверял только
+`weight <= 0`, а `NaN` эту проверку обходит. В training loop веса всегда
+умножались на `sample_weight`, поэтому loss стал `NaN` с первого batch.
+
+Исправление:
+
+- Stage 15A synthetic arms больше не записывают `sample_weight`; их вес
+  задаётся только `training.synthetic_weight=0.5`;
+- loader теперь fail-closed отклоняет любые non-finite sample weights;
+- добавлен regression test;
+- незавершённый arm B каталог помечен `invalid_nan_sample_weight` и никогда
+  не включается в сводки;
+- валидный arm A seed 42 не перезапускается.
