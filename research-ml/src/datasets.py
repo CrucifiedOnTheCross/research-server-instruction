@@ -11,6 +11,7 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset, Sampler, WeightedRandomSampler
 from torchvision import transforms
 
+from .image_transforms import CropDarkFieldOfView
 from .reproducibility import seed_worker
 
 
@@ -109,6 +110,14 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
     if train:
         train_aug = aug["train"]
         ops: list[Any] = []
+        if train_aug.get("crop_dark_field", False):
+            ops.append(
+                CropDarkFieldOfView(
+                    train_aug.get("dark_field_threshold", 8),
+                    train_aug.get("dark_field_margin_fraction", 0.02),
+                    train_aug.get("dark_field_analysis_size", 512),
+                )
+            )
         if train_aug.get("aspect_preserving_pad", False):
             if train_aug["random_resized_crop"]:
                 raise ValueError(
@@ -129,6 +138,15 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
             ops.append(transforms.RandAugment())
     else:
         eval_aug = aug["eval"]
+        ops = []
+        if eval_aug.get("crop_dark_field", False):
+            ops.append(
+                CropDarkFieldOfView(
+                    eval_aug.get("dark_field_threshold", 8),
+                    eval_aug.get("dark_field_margin_fraction", 0.02),
+                    eval_aug.get("dark_field_analysis_size", 512),
+                )
+            )
         if eval_aug.get("aspect_preserving_pad", False) and eval_aug["center_crop"]:
             raise ValueError(
                 "augmentation.eval.aspect_preserving_pad and center_crop are mutually exclusive"
@@ -139,9 +157,9 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
                 "otherwise torchvision pads the evaluation image."
             )
         if eval_aug.get("aspect_preserving_pad", False):
-            ops = [ResizePadToSquare(data["val_size"], pad_fill)]
+            ops.append(ResizePadToSquare(data["val_size"], pad_fill))
         else:
-            ops = [transforms.Resize(eval_aug["resize"])]
+            ops.append(transforms.Resize(eval_aug["resize"]))
         if eval_aug["center_crop"]:
             ops.append(transforms.CenterCrop(data["val_size"]))
         elif not eval_aug.get("aspect_preserving_pad", False):

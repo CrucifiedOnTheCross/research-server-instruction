@@ -668,6 +668,12 @@ confirmation.
    calibration и lesion-group bootstrap; seed-42 tie не считается
    улучшением.
 
+Следующий этап поставлен в очередь как Stage 16P и не конкурирует за GPU с
+confirmation. Он квалифицирует два real-only geometry variants относительно
+Natural CE: full-frame aspect-preserving pad и simplified dark-FOV
+crop + pad. Полный protocol, preregistered guardrails и литература:
+`docs/stage16p_isic2019_preprocessing_protocol_2026-07-30.md`.
+
 ## Использованные источники
 
 1. ISIC Challenge Datasets. Official releases, metadata, duplicate lists and

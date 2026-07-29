@@ -8,6 +8,8 @@ from unittest.mock import patch
 from PIL import Image
 
 from tools.check_stage16a_gate import validate
+from src.config import load_config
+from src.image_transforms import CropDarkFieldOfView
 from tools.prepare_isic2019 import (
     CLASS_NAMES,
     assign_connected_groups,
@@ -95,6 +97,58 @@ class Stage16ISIC2019Tests(unittest.TestCase):
                 details, errors = validate(Path(directory), check_files=False)
         self.assertFalse(details)
         self.assertTrue(errors)
+
+    def test_stage16p_is_a_single_factor_geometry_ablation(self) -> None:
+        baseline = load_config(
+            "configs/isic2019_stage16_real_ce_natural_384.yaml"
+        )
+        aspect_pad = load_config(
+            "configs/isic2019_stage16p_real_aspect_pad_natural_384.yaml"
+        )
+        dark_fov = load_config(
+            "configs/isic2019_stage16p_real_dark_fov_pad_natural_384.yaml"
+        )
+        for section in ("data", "model", "training", "imbalance", "evaluation"):
+            self.assertEqual(baseline[section], aspect_pad[section])
+            self.assertEqual(baseline[section], dark_fov[section])
+        self.assertFalse(
+            baseline["augmentation"]["train"].get(
+                "aspect_preserving_pad", False
+            )
+        )
+        self.assertTrue(
+            aspect_pad["augmentation"]["train"]["aspect_preserving_pad"]
+        )
+        self.assertFalse(
+            aspect_pad["augmentation"]["train"]["random_resized_crop"]
+        )
+        self.assertTrue(
+            aspect_pad["augmentation"]["eval"]["aspect_preserving_pad"]
+        )
+        self.assertFalse(aspect_pad["augmentation"]["eval"]["center_crop"])
+        self.assertFalse(aspect_pad["evaluation"]["run_test"])
+        self.assertTrue(dark_fov["augmentation"]["train"]["crop_dark_field"])
+        self.assertTrue(dark_fov["augmentation"]["eval"]["crop_dark_field"])
+        self.assertEqual(
+            dark_fov["augmentation"]["train"]["dark_field_threshold"], 8
+        )
+
+    def test_dark_field_crop_removes_only_external_black_frame(self) -> None:
+        image = Image.new("RGB", (100, 80), (0, 0, 0))
+        image.paste((80, 120, 160), (10, 15, 90, 65))
+        cropped = CropDarkFieldOfView(
+            threshold=8, margin_fraction=0.0
+        )(image)
+        self.assertEqual(cropped.size, (80, 50))
+        self.assertEqual(cropped.getpixel((0, 0)), (80, 120, 160))
+
+    def test_dark_field_crop_rejects_implausibly_small_foreground(self) -> None:
+        image = Image.new("RGB", (100, 80), (0, 0, 0))
+        image.paste((255, 255, 255), (45, 35, 55, 45))
+        cropped = CropDarkFieldOfView(
+            threshold=8, margin_fraction=0.0
+        )(image)
+        self.assertEqual(cropped.size, image.size)
 
 
 if __name__ == "__main__":
