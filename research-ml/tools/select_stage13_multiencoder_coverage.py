@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
         "--pool-csv",
         default="outputs/reports/stage8_dino_geometry/synthetic_dino_scores.csv",
     )
+    parser.add_argument("--additional-pool-csv", action="append", default=[])
     parser.add_argument("--strict-csv", default="splits/stage10/selected_synthetic_strict_id.csv")
     parser.add_argument("--out-dir", default="outputs/reports/stage13_selection")
     parser.add_argument("--split-out-dir", default="splits/stage13")
@@ -308,12 +309,20 @@ def main() -> None:
     split_out_dir = resolve(data_root, args.split_out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     split_out_dir.mkdir(parents=True, exist_ok=True)
-    pool_path = resolve(project_root, args.pool_csv)
-    if not pool_path.exists():
-        pool_path = resolve(data_root, args.pool_csv)
+    pool_paths: list[Path] = []
+    for configured_path in [args.pool_csv, *args.additional_pool_csv]:
+        pool_path = resolve(project_root, configured_path)
+        if not pool_path.exists():
+            pool_path = resolve(data_root, configured_path)
+        pool_paths.append(pool_path)
+    primary_pool_path = pool_paths[0]
     strict_path = resolve(data_root, args.strict_csv)
     real_path = resolve(data_root, args.real_csv)
-    candidate_pool = pd.read_csv(pool_path)
+    candidate_pool = pd.concat(
+        [pd.read_csv(path) for path in pool_paths],
+        ignore_index=True,
+        sort=False,
+    )
     candidate_pool = candidate_pool[
         candidate_pool["label"].astype(str).isin(TARGET_CLASSES)
     ].reset_index(drop=True)
@@ -536,8 +545,12 @@ def main() -> None:
             "inputs": {
                 "real_csv": str(real_path),
                 "real_csv_sha256": sha256(real_path),
-                "pool_csv": str(pool_path),
-                "pool_csv_sha256": sha256(pool_path),
+                "pool_csv": str(primary_pool_path),
+                "pool_csv_sha256": sha256(pool_paths[0]),
+                "pool_csvs": [
+                    {"path": str(path), "sha256": sha256(path)}
+                    for path in pool_paths
+                ],
                 "strict_csv": str(strict_path),
                 "strict_csv_sha256": sha256(strict_path),
             },
@@ -630,8 +643,12 @@ def main() -> None:
         "inputs": {
             "real_csv": str(real_path),
             "real_csv_sha256": sha256(real_path),
-            "pool_csv": str(pool_path),
-            "pool_csv_sha256": sha256(pool_path),
+            "pool_csv": str(primary_pool_path),
+            "pool_csv_sha256": sha256(pool_paths[0]),
+            "pool_csvs": [
+                {"path": str(path), "sha256": sha256(path)}
+                for path in pool_paths
+            ],
             "strict_csv": str(strict_path),
             "strict_csv_sha256": sha256(strict_path),
         },

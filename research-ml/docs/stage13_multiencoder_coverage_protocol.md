@@ -196,3 +196,59 @@ selection; старый `strict_id` добавляется только как e
 разрешён только при полном совпадении resolved config. Порядок классов и
 соответствие seed исходному изображению явно детерминированы и не зависят от
 `PYTHONHASHSEED`.
+
+## Фактический Stage 13A2
+
+Дата: 2026-07-29.
+
+Полный pool из 960 изображений и все четыре encoder caches рассчитаны без
+ошибок. Gate снова закрыт до обучения:
+
+| Class | Tier A | Tier B | A+B unique sources | Required |
+|---|---:|---:|---:|---:|
+| mel | 28 | 29 | 47 | 30 |
+| akiec | 115 | 83 | 100 Tier A | 30 |
+| bkl | 4 | 23 | 22 | 30 |
+
+По strength:
+
+- `mel 0.05`: 43 допустимых источника; `0.10`: 14;
+- `akiec 0.05`: 130; `0.10`: 68;
+- `bkl 0.05`: 20; `0.10`: 7.
+
+Frequency max-z проходит 142–152 из 160 строк на class/strength. Для `bkl
+0.05` novelty Tier B проходит 40/160, positive margin 71/160, но полное
+пересечение критериев даёт только 20 источников. Следовательно, снижение
+strength улучшило соответствие пространству, однако исходного бюджета
+источников недостаточно для `bkl`.
+
+## Stage 13A3: независимое расширение bkl source budget
+
+Меняется один фактор: число независимых исходных `bkl` lesions при уже
+лучшем strength 0.05.
+
+- генерируются 160 дополнительных `bkl` изображений;
+- source IDs из Stage 13A2 явно исключаются;
+- один вариант на source;
+- Stable Diffusion, prompt, negative prompt, guidance scale, steps, crop и
+  seed фиксируются в resolved config;
+- объединённый candidate pool содержит 1120 строк: исходные 960 плюс 160
+  дополнительных `bkl`;
+- пороги Tier A/B, one-source constraint, facility-location objective и
+  gate не изменяются;
+- при shortage либо geometry gate failure обучение снова не запускается.
+
+Такой дизайн проверяет достаточность candidate/source coverage, а не
+смягчает определение пригодного изображения после просмотра результата.
+DiffuLT мотивирует фильтрацию approximately-in-distribution синтетики, а
+Diffusion Curriculum показывает необходимость контролировать спектр
+image-guidance и distribution gap. В этой стадии используется только
+эмпирически пригодный край спектра 0.05; curriculum training пока не
+проверяется.
+
+Новая ссылка:
+
+- Liang Y., Bhardwaj S., Zhou T. *Diffusion Curriculum:
+  Synthetic-to-Real Data Curriculum via Image-Guided Diffusion*. ICCV,
+  2025.
+  https://openaccess.thecvf.com/content/ICCV2025/html/Liang_Diffusion_Curriculum_Synthetic-to-Real_Data_Curriculum_via_Image-Guided_Diffusion_ICCV_2025_paper.html

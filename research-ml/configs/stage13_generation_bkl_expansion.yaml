@@ -1,0 +1,23 @@
+generation:
+  name: ham10000_stage13_bkl_expansion_img2img
+  model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
+  output_dir: synthetic/ham10000_stage13_bkl_expansion_img2img
+  seed: 20260730
+  num_images_per_real: 1
+  image_size: 512
+  preprocess_mode: center_crop
+  image_format: png
+  strength: 0.05
+  strengths: [0.05]
+  guidance_scale: 6.0
+  inference_steps: 30
+  batch_size: 4
+  target_classes: [bkl]
+  max_real_per_class: 160
+  exclude_manifest_paths:
+    - synthetic/ham10000_stage13_low_strength_img2img/synthetic_manifest.csv
+  prompt_templates:
+    bkl: "full-frame clinical dermoscopic image of a benign keratosis-like lesion, preserve the source lesion morphology, realistic skin texture, diagnostic detail, no frame or padding"
+  confusing_classes:
+    bkl: [mel, nv, akiec]
+  negative_prompt_base: "cartoon, illustration, text, watermark, artificial black border, letterbox, frame, duplicate lesion, blurry, low quality, non-dermoscopic image"

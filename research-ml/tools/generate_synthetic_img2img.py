@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -59,6 +60,27 @@ def write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def excluded_source_ids(
+    data_root: Path,
+    manifest_paths: list[str],
+) -> set[str]:
+    excluded: set[str] = set()
+    for manifest in manifest_paths:
+        for row in read_rows(data_root / manifest):
+            source = row.get("source_image_id")
+            if source:
+                excluded.add(str(source))
+    return excluded
 
 
 def load_pipeline(model_id: str):
@@ -131,10 +153,15 @@ def main() -> None:
     train_rows = read_rows(data_root / args.train_csv)
     target_classes = sorted(set(cfg["target_classes"]))
     rng = random.Random(int(cfg["seed"]))
+    exclusion_paths = [str(path) for path in cfg.get("exclude_manifest_paths", [])]
+    excluded_sources = excluded_source_ids(data_root, exclusion_paths)
 
     by_class: dict[str, list[dict[str, str]]] = {label: [] for label in target_classes}
     for row in train_rows:
         if int(row.get("is_synthetic", 0)) == 0 and row["label"] in target_classes:
+            source = row.get("image_id") or Path(row["image_path"]).stem
+            if source in excluded_sources:
+                continue
             by_class[row["label"]].append(row)
     for label in target_classes:
         rng.shuffle(by_class[label])
@@ -151,13 +178,35 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / "synthetic_manifest.csv"
     metadata_path = out_dir / "generation_config.resolved.yaml"
+    inputs_path = out_dir / "generation_inputs.json"
+    generation_inputs = {
+        "train_csv": args.train_csv,
+        "train_csv_sha256": file_sha256(data_root / args.train_csv),
+        "excluded_manifests": [
+            {
+                "path": path,
+                "sha256": file_sha256(data_root / path),
+            }
+            for path in exclusion_paths
+        ],
+    }
     if manifest_path.exists() and metadata_path.exists():
         previous_cfg = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
         if previous_cfg != cfg:
             raise ValueError(
                 "Refusing to resume generation with a different resolved config"
             )
+        if inputs_path.exists():
+            previous_inputs = json.loads(inputs_path.read_text(encoding="utf-8"))
+            if previous_inputs != generation_inputs:
+                raise ValueError(
+                    "Refusing to resume generation after an input manifest changed"
+                )
     metadata_path.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    inputs_path.write_text(
+        json.dumps(generation_inputs, indent=2),
+        encoding="utf-8",
+    )
 
     strengths = [float(value) for value in cfg.get("strengths", [cfg["strength"]])]
     plan_count = len(selected) * int(cfg["num_images_per_real"]) * len(strengths)
