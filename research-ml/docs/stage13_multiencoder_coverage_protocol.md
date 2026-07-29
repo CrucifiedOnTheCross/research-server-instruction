@@ -246,6 +246,37 @@ image-guidance и distribution gap. В этой стадии используе�
 эмпирически пригодный край спектра 0.05; curriculum training пока не
 проверяется.
 
+## Фактический Stage 13A3 и решение о Stage 13B
+
+Дата: 2026-07-29.
+
+Дополнительные 160 `bkl` sources увеличили допустимый набор до 39 строк из
+35 уникальных источников. Итоговый subset:
+
+- `mel`: 18 Tier A + 12 Tier B;
+- `akiec`: 30 Tier A;
+- `bkl`: 8 Tier A + 22 Tier B;
+- всего 90 строк, 90 уникальных source lesions;
+- Tier B fraction 0.3778.
+
+Geometry gate открыт:
+
+- coverage wins: 12/12;
+- mean coverage delta против `strict_id`: +0.1547;
+- mean precision delta: +0.3083;
+- mean density delta: +0.4317;
+- frequency wins: 3/3;
+- locked test не использован.
+
+Stage 13B запускается как paired confirmatory comparison:
+
+- `stage13b_synthetic_coverage_convnext_small_384`;
+- `stage13b_replay_coverage_convnext_small_384`;
+- seeds 42, 43, 44;
+- 80 epochs с одинаковым qualified ConvNeXt-S recipe;
+- early stopping только по validation;
+- `evaluation.run_test=false`.
+
 Новая ссылка:
 
 - Liang Y., Bhardwaj S., Zhou T. *Diffusion Curriculum:

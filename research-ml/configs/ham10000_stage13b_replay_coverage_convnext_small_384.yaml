@@ -1,0 +1,47 @@
+experiment:
+  name: stage13b_replay_coverage_convnext_small_384
+  notes: "Stage 13B confirmatory control: source-matched real replay for the coverage-targeted subset."
+
+runtime:
+  deterministic: true
+
+data:
+  root: /srv/research/projects/default/ham10000
+  train_csv: splits/stage13_bkl_expansion/train_source_replay_coverage_targeted.csv
+  val_csv: splits/stage8/val_real.csv
+  test_csv: splits/stage8/locked_test_real.csv
+  image_size: 384
+  val_size: 384
+
+model:
+  name: convnext_small.fb_in22k_ft_in1k_384
+  drop_path_rate: 0.2
+
+augmentation:
+  eval:
+    resize: 438
+    center_crop: true
+
+training:
+  epochs: 80
+  batch_size: 32
+  accumulation_steps: 1
+  lr: 0.0001
+  layer_decay: 0.925
+  warmup_epochs: 5
+  early_stopping_patience: 15
+  label_smoothing: 0.05
+  model_ema: true
+  model_ema_decay: 0.9999
+  model_ema_warmup: true
+  use_sample_weights: true
+  save_last_checkpoint: false
+  checkpoint_include_optimizer: false
+
+imbalance:
+  sampler: none
+  loss: cross_entropy
+  class_weights: none
+
+evaluation:
+  run_test: false
