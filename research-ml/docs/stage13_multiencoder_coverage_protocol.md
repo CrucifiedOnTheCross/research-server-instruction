@@ -142,6 +142,21 @@ Gate открывается только если:
 Existing `strict_id` не переобучается: Stage 11B остаётся историческим
 контролем. Primary и minority endpoints совпадают со Stage 11B.
 
+### Analysis readiness correction, 2026-07-29
+
+Во время независимого retrospective audit до завершения Stage 13B обнаружено,
+что monitoring automation ссылалась на отсутствующий
+`scripts/run_stage13b_analysis.sh`, а paired analyzer был жёстко привязан к
+именам Stage 11B. Training runs и их метрики не затронуты.
+
+До просмотра Stage 13B результатов добавлены:
+
+- параметризованный paired analyzer с обратной совместимостью Stage 11B;
+- Stage 13B calibration/analysis wrapper;
+- 5000-repeat hierarchical lesion-group bootstrap;
+- regression tests и MLflow sync;
+- заранее заданный Stage 14 decision gate.
+
 ## Фактический Stage 13A на исходном pool
 
 Дата: 2026-07-29.

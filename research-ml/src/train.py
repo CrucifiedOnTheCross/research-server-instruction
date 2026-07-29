@@ -171,7 +171,7 @@ def train_one_epoch(
         loader.sampler.set_epoch(epoch)
     dtype = autocast_dtype(config)
     total_loss = 0.0
-    total_examples = 0
+    total_loss_mass = 0.0
     accumulation = int(config["training"]["accumulation_steps"])
     optimizer.zero_grad(set_to_none=True)
 
@@ -206,8 +206,14 @@ def train_one_epoch(
                 )
                 weights = weights * synthetic_weights
                 loss = (loss_raw * weights).sum() / weights.sum().clamp_min(1.0)
+                reporting_loss_sum = (loss_raw.detach() * weights).sum()
+                reporting_mass = weights.sum()
             else:
                 loss = loss_raw.mean() if loss_raw.ndim > 0 else loss_raw
+                reporting_loss_sum = loss.detach() * targets.numel()
+                reporting_mass = torch.as_tensor(
+                    targets.numel(), device=loss.device, dtype=loss.dtype
+                )
             loss = loss / accumulation
 
         if scaler is not None:
@@ -232,12 +238,11 @@ def train_one_epoch(
                 )
             optimizer.zero_grad(set_to_none=True)
 
-        examples = targets.numel()
-        total_loss += float(loss.detach().cpu()) * accumulation * examples
-        total_examples += examples
-        progress.set_postfix(loss=total_loss / max(1, total_examples))
+        total_loss += float(reporting_loss_sum.cpu())
+        total_loss_mass += float(reporting_mass.cpu())
+        progress.set_postfix(loss=total_loss / max(1.0, total_loss_mass))
 
-    return {"loss": total_loss / max(1, total_examples)}
+    return {"loss": total_loss / max(1.0, total_loss_mass)}
 
 
 @torch.no_grad()

@@ -1,0 +1,50 @@
+status: waiting_for_stage13b
+decision_date: null
+source_analysis: outputs/reports/stage13b_analysis
+locked_test_policy: closed
+
+thresholds:
+  minimum_seed_wins: 3
+  melanoma_recall_margin: -0.05
+  melanoma_auprc_margin: -0.02
+  ece_worsening_margin: 0.02
+
+branches:
+  A_external_robustness:
+    condition: strong_positive
+    objective: "Confirm the promoted synthetic method on external real data and preprocessing subgroups before opening the locked test."
+    gpu_training_allowed: true
+  B_generator_pilot:
+    condition: mixed_positive
+    objective: "Compare current SD1.5 img2img with domain-specific and lesion-aware generation using train-only geometry, privacy and frequency gates."
+    gpu_training_allowed: false
+  C_preprocessing_qualification:
+    condition: null_or_negative
+    objective: "Qualify aspect-preserving and lesion-guided real-only preprocessing before any further synthetic utility training."
+    gpu_training_allowed: true
+
+generator_candidates:
+  current_control:
+    family: stable_diffusion_1_5_img2img
+    source_conditioned: true
+    downstream_status: historical_control
+  derm_t2im:
+    family: domain_specific_stable_diffusion
+    source_conditioned: false
+    downstream_status: pilot_only
+  lesion_inpainting:
+    family: mask_conditioned_diffusion
+    source_conditioned: true
+    downstream_status: pilot_only
+  lf_var:
+    family: lesion_focused_vector_autoregression
+    source_conditioned: false
+    downstream_status: feasibility_only
+
+preprocessing_candidates:
+  - current_square_crop
+  - aspect_preserving_resize_pad
+  - lesion_mask_guided_crop
+  - hair_removal_only
+  - color_constancy_only
+

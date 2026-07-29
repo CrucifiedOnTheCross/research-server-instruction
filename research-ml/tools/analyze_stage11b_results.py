@@ -15,6 +15,9 @@ import tools.analyze_stage10_results as paired_analysis
 
 
 STRATUM = "strict_id"
+STAGE = "stage11b"
+REPLAY_EXPERIMENT = "stage11b_replay_strict_id_convnext_small_384"
+SYNTHETIC_EXPERIMENT = "stage11b_synthetic_strict_id_convnext_small_384"
 SEEDS = (42, 43, 44)
 
 
@@ -25,13 +28,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", default="outputs/reports/stage11b_analysis")
     parser.add_argument("--bootstrap-replicates", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=20260728)
+    parser.add_argument("--stage", default=STAGE)
+    parser.add_argument("--stratum", default=STRATUM)
+    parser.add_argument("--replay-experiment", default=REPLAY_EXPERIMENT)
+    parser.add_argument("--synthetic-experiment", default=SYNTHETIC_EXPERIMENT)
     return parser.parse_args()
 
 
 def experiment_name(arm: str, stratum: str) -> str:
     if stratum != STRATUM:
-        raise ValueError(f"Stage 11B only permits {STRATUM}")
-    return f"stage11b_{arm}_strict_id_convnext_small_384"
+        raise ValueError(f"Paired analysis only permits {STRATUM}")
+    if arm == "replay":
+        return REPLAY_EXPERIMENT
+    if arm == "synthetic":
+        return SYNTHETIC_EXPERIMENT
+    raise ValueError(f"Unknown arm: {arm}")
 
 
 def decision_summary(
@@ -80,7 +91,7 @@ def decision_summary(
     }
 
 
-def plot_deltas(paired: pd.DataFrame, out_path: Path) -> None:
+def plot_deltas(paired: pd.DataFrame, out_path: Path, stage: str = STAGE) -> None:
     metrics = ("macro_f1", "mcc", "auprc_ovr_macro", "mel_auprc")
     subset = paired.set_index("metric").loc[list(metrics)]
     values = subset["mean_difference_synthetic_minus_replay"].to_numpy(float)
@@ -91,14 +102,19 @@ def plot_deltas(paired: pd.DataFrame, out_path: Path) -> None:
     axis.axhline(0, color="black", linewidth=0.8)
     axis.set_xticks(positions, [metric.replace("_", " ") for metric in metrics])
     axis.set_ylabel("Synthetic minus source replay")
-    axis.set_title("Stage 11B paired validation deltas")
+    axis.set_title(f"{stage.upper()} paired validation deltas")
     axis.grid(axis="y", alpha=0.25)
     figure.savefig(out_path, dpi=180, bbox_inches="tight")
     plt.close(figure)
 
 
 def main() -> None:
+    global STAGE, STRATUM, REPLAY_EXPERIMENT, SYNTHETIC_EXPERIMENT
     args = parse_args()
+    STAGE = str(args.stage)
+    STRATUM = str(args.stratum)
+    REPLAY_EXPERIMENT = str(args.replay_experiment)
+    SYNTHETIC_EXPERIMENT = str(args.synthetic_experiment)
     project_root = Path(args.project_root).resolve()
     data_root = Path(args.data_root).resolve()
     out_dir = Path(args.out_dir)
@@ -135,11 +151,11 @@ def main() -> None:
     fixed.to_csv(out_dir / "fixed_specificity_diagnostics.csv", index=False)
     checks.to_csv(out_dir / "artifact_integrity.csv", index=False)
     alignment.to_csv(out_dir / "prediction_alignment.csv", index=False)
-    plot_deltas(paired, out_dir / "paired_validation_deltas.png")
+    plot_deltas(paired, out_dir / "paired_validation_deltas.png", STAGE)
 
     summary = {
         "status": "complete",
-        "stage": "stage11b",
+        "stage": STAGE,
         "runs": int(len(frame)),
         "seeds": list(SEEDS),
         "locked_test_evaluated": False,
