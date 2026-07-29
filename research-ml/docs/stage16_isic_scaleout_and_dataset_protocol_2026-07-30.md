@@ -518,6 +518,42 @@ ISIC 2019 является основным multiclass replication dataset. ISIC
 patient-level external binary stress test. ISIC 2024 не смешивается с
 дерматоскопией и остаётся отдельной будущей задачей.
 
+## Реализация Stage 16A/16B
+
+Подготовлен воспроизводимый pipeline:
+
+- `tools/prepare_isic2019.py` загружает официальные архивы, проверяет ZIP,
+  декодирование, размеры, SHA-256 и perceptual dHash;
+- связанные по lesion ID, точному или визуальному дубликату изображения
+  объединяются до разбиения;
+- группы с конфликтующими диагнозами помещаются в quarantine;
+- SCC сохраняется отдельным восьмым классом и не отображается в HAM10000
+  AKIEC;
+- формируются immutable manifest, dataset summary, train/validation/locked
+  test split и малые smoke splits;
+- `tools/check_stage16a_gate.py` блокирует обучение при нарушении ontology,
+  количества изображений, group disjointness, checksum или locked-test
+  policy;
+- `scripts/start_stage16a_data_container.sh` выполняет загрузку и gate в
+  отдельном CPU-контейнере;
+- `scripts/start_stage16b_container.sh` запускает GPU screening только после
+  успешного data gate.
+
+Stage 16B является real-only qualification, а не проверкой синтетики.
+Фиксируются ConvNeXt-S 384, одинаковая ImageNet-инициализация, одинаковая
+аугментация и три метода работы с дисбалансом:
+
+1. natural sampling + cross entropy;
+2. weighted sampling + cross entropy;
+3. natural sampling + Balanced Softmax.
+
+Первый screening выполняется на seed 42 и закрытой validation. После
+проверки корректности артефактов и вычислительного бюджета лучшие методы
+повторяются на seeds 43 и 44. Locked test остаётся закрытым
+(`evaluation.run_test=false`). Основной критерий выбора:
+`val/auprc_ovr_macro`; дополнительно анализируются macro F1, MCC, balanced
+accuracy, ECE, worst-class recall, melanoma и SCC AUPRC.
+
 ## Использованные источники
 
 1. ISIC Challenge Datasets. Official releases, metadata, duplicate lists and
