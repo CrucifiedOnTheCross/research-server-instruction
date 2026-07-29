@@ -225,6 +225,75 @@ Promotion требует положительного paired mean по macro AUP
 ухудшения melanoma AUPRC/recall. Macro F1 без ranking improvement не
 достаточен.
 
+## Результаты Stage 14P-1
+
+Эксперимент завершён штатно: 3/3 seeds, 1280 validation-изображений,
+599 lesion-групп, locked test не открывался. Метрики повторно вычислены из
+`val_predictions_best.csv`; максимальное расхождение со structured artifacts
+составило `6.02e-8`. Во всех таблицах ниже delta означает
+`aspect-preserving pad − historical square-crop`.
+
+| Метрика | Crop control, mean | Pad candidate, mean | Paired delta | Wins |
+|---|---:|---:|---:|---:|
+| Macro F1 | 0.7699 | 0.7586 | -0.0113 | 0/3 |
+| MCC | 0.6610 | 0.6508 | -0.0102 | 1/3 |
+| Balanced accuracy | 0.7785 | 0.7613 | -0.0172 | 0/3 |
+| Macro AUROC | 0.9508 | 0.9435 | -0.0073 | 0/3 |
+| Macro AUPRC | 0.8068 | 0.7778 | -0.0291 | 0/3 |
+| ECE | 0.1146 | 0.1252 | +0.0107, хуже | 0/3 |
+| Worst-class recall | 0.6667 | 0.6042 | -0.0625 | 0/3 |
+| Melanoma recall | 0.7436 | 0.6527 | -0.0909 | 0/3 |
+| Melanoma F1 | 0.5412 | 0.5177 | -0.0235 | 0/3 |
+| Melanoma AUROC | 0.8915 | 0.8599 | -0.0317 | 0/3 |
+| Melanoma AUPRC | 0.5439 | 0.4706 | -0.0732 | 0/3 |
+
+Seed-level t-интервал macro F1 равен `[-0.0222; -0.0003]`. При трёх seeds
+точный двухсторонний sign-flip test имеет минимально достижимый шаг `0.25`,
+поэтому он не используется как единственное основание решения.
+
+5000-repeat hierarchical lesion-group bootstrap:
+
+| Метрика | Mean delta | 95% CI | P(delta > 0) |
+|---|---:|---:|---:|
+| Macro F1 | -0.0116 | [-0.0371; +0.0146] | 0.182 |
+| MCC | -0.0103 | [-0.0374; +0.0163] | 0.224 |
+| Balanced accuracy | -0.0178 | [-0.0478; +0.0139] | 0.131 |
+| Melanoma recall | -0.0908 | [-0.1827; -0.0117] | 0.011 |
+| Melanoma F1 | -0.0233 | [-0.0757; +0.0256] | 0.181 |
+
+Температурная калибровка снижает ECE обеих веток, но не исправляет ухудшение
+ranking: AUROC/AUPRC инвариантны к монотонному temperature scaling.
+Fixed-specificity diagnostics также не дают устойчивого клинического
+преимущества padding.
+
+Среднее время одного запуска: 1590 секунд для padding и 1556 секунд для
+control. Следовательно, отрицательный результат нельзя объяснить сокращённым
+compute budget.
+
+### Решение Stage 14P-1
+
+`aspect-preserving resize + pad` отклонён. Он не проходит заранее заданный
+promotion gate: macro AUPRC и melanoma AUPRC/recall ухудшились на 3/3 seeds,
+а для melanoma recall bootstrap-интервал полностью ниже нуля. Исторический
+crop preprocessing остаётся квалифицированным control; locked test остаётся
+закрытым.
+
+Наиболее вероятная научная интерпретация: сохранение полного кадра уменьшает
+эффективное пространственное разрешение самой lesion и добавляет
+неинформативные поля. Это проверяемая гипотеза, а не доказанный механизм.
+Следующий preprocessing-кандидат должен быть lesion-aware и анализироваться
+по фактической доле lesion в кадре. До появления воспроизводимых masks нельзя
+смешивать lesion-guided crop, hair removal и color constancy в один pipeline.
+
+Канонические artifacts:
+
+- `outputs/reports/stage14p_analysis/analysis_summary.json`;
+- `outputs/reports/stage14p_analysis/paired_seed_comparisons.csv`;
+- `outputs/reports/stage14p_analysis/hierarchical_lesion_bootstrap.csv`;
+- `outputs/reports/stage14p_analysis/per_class_discrimination.csv`;
+- `outputs/reports/stage14p_analysis/calibration_summary.csv`;
+- `outputs/reports/stage14p_analysis/fixed_specificity_diagnostics.csv`.
+
 ### Branch A: strong positive Stage 13B
 
 Условие:
