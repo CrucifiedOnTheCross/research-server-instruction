@@ -8,6 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import yaml
 from scipy import stats
 from sklearn.metrics import average_precision_score, roc_auc_score
 
@@ -40,6 +41,31 @@ BOOTSTRAP_METRICS = (
     "mel_recall",
     "mel_f1",
 )
+
+
+def validate_best_checkpoint(
+    history: pd.DataFrame,
+    summary: dict[str, object],
+    resolved_config: dict[str, object],
+) -> None:
+    training = resolved_config["training"]
+    monitor = str(training["monitor"])
+    mode = str(training["monitor_mode"])
+    if monitor not in history.columns:
+        raise ValueError(f"Checkpoint monitor is absent from history: {monitor}")
+    if mode == "max":
+        best_row = history.loc[history[monitor].idxmax()]
+    elif mode == "min":
+        best_row = history.loc[history[monitor].idxmin()]
+    else:
+        raise ValueError(f"Unsupported checkpoint monitor mode: {mode}")
+    if not np.isclose(
+        float(best_row[monitor]),
+        float(summary["best_metric"]),
+        rtol=0,
+        atol=1e-10,
+    ) or int(best_row["epoch"]) != int(summary["best_epoch"]):
+        raise ValueError("best checkpoint/history mismatch")
 REQUIRED_ARTIFACTS = (
     "summary.json",
     "val_metrics_best.json",
@@ -136,14 +162,13 @@ def load_runs(
                     raise ValueError(f"{run_dir}: metric recomputation error {max_error}")
 
                 history = pd.read_csv(run_dir / "metrics.csv")
-                best_row = history.loc[history["val/macro_f1"].idxmax()]
-                if not np.isclose(
-                    float(best_row["val/macro_f1"]),
-                    float(summary["best_metric"]),
-                    rtol=0,
-                    atol=1e-10,
-                ):
-                    raise ValueError(f"{run_dir}: best checkpoint/history mismatch")
+                resolved_config = yaml.safe_load(
+                    (run_dir / "config.resolved.yaml").read_text(encoding="utf-8")
+                )
+                try:
+                    validate_best_checkpoint(history, summary, resolved_config)
+                except ValueError as error:
+                    raise ValueError(f"{run_dir}: {error}") from error
                 rows.append(
                     {
                         "stratum": stratum,

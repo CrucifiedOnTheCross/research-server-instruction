@@ -210,3 +210,10 @@ base rows после CSV concat образовался `NaN`. Dataset loader п�
 - незавершённый arm B каталог помечен `invalid_nan_sample_weight` и никогда
   не включается в сводки;
 - валидный arm A seed 42 не перезапускается.
+
+После завершения 12 runs обнаружено второе compatibility-ограничение:
+historical paired analyzer жёстко проверял максимум `val/macro_f1`, хотя
+Stage 15A preregistered monitor равен `val/auprc_ovr_macro`. Analyzer
+исправлен: он читает `training.monitor` и `monitor_mode` из каждого
+`config.resolved.yaml`, проверяет одновременно metric value и best epoch.
+Historical macro-F1 runs остаются совместимыми.
