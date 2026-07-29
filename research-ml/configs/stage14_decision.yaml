@@ -1,7 +1,9 @@
-status: waiting_for_stage13b
-decision_date: null
+status: branch_c_preprocessing_qualification
+decision_date: "2026-07-29"
 source_analysis: outputs/reports/stage13b_analysis
 locked_test_policy: closed
+selected_branch: C_preprocessing_qualification
+decision_rationale: "Stage 13B coverage-targeted synthetic did not beat source-matched replay on global or ranking metrics; macro AUPRC was lower on 3/3 seeds and lesion-bootstrap intervals for macro F1/MCC crossed zero."
 
 thresholds:
   minimum_seed_wins: 3
@@ -47,4 +49,3 @@ preprocessing_candidates:
   - lesion_mask_guided_crop
   - hair_removal_only
   - color_constancy_only
-

@@ -23,6 +23,27 @@ class DatasetBundle:
     sampling_plan: dict[str, Any]
 
 
+class ResizePadToSquare:
+    def __init__(self, size: int, fill: tuple[int, int, int]) -> None:
+        self.size = int(size)
+        self.fill = tuple(int(value) for value in fill)
+
+    def __call__(self, image: Image.Image) -> Image.Image:
+        width, height = image.size
+        scale = min(self.size / width, self.size / height)
+        resized = image.resize(
+            (max(1, round(width * scale)), max(1, round(height * scale))),
+            Image.Resampling.LANCZOS,
+        )
+        canvas = Image.new("RGB", (self.size, self.size), self.fill)
+        offset = (
+            (self.size - resized.width) // 2,
+            (self.size - resized.height) // 2,
+        )
+        canvas.paste(resized, offset)
+        return canvas
+
+
 class CsvImageDataset(Dataset):
     def __init__(
         self,
@@ -81,10 +102,17 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
     data = config["data"]
     mean = aug["normalize"]["mean"]
     std = aug["normalize"]["std"]
+    pad_fill = tuple(round(float(value) * 255) for value in mean)
     if train:
         train_aug = aug["train"]
         ops: list[Any] = []
-        if train_aug["random_resized_crop"]:
+        if train_aug.get("aspect_preserving_pad", False):
+            if train_aug["random_resized_crop"]:
+                raise ValueError(
+                    "aspect_preserving_pad and random_resized_crop are mutually exclusive"
+                )
+            ops.append(ResizePadToSquare(data["image_size"], pad_fill))
+        elif train_aug["random_resized_crop"]:
             ops.append(transforms.RandomResizedCrop(data["image_size"], scale=tuple(train_aug["scale"])))
         else:
             ops.append(transforms.Resize((data["image_size"], data["image_size"])))
@@ -98,15 +126,22 @@ def build_transforms(config: dict[str, Any], train: bool) -> transforms.Compose:
             ops.append(transforms.RandAugment())
     else:
         eval_aug = aug["eval"]
+        if eval_aug.get("aspect_preserving_pad", False) and eval_aug["center_crop"]:
+            raise ValueError(
+                "augmentation.eval.aspect_preserving_pad and center_crop are mutually exclusive"
+            )
         if eval_aug["center_crop"] and int(eval_aug["resize"]) < int(data["val_size"]):
             raise ValueError(
                 "augmentation.eval.resize must be >= data.val_size when center_crop=true; "
                 "otherwise torchvision pads the evaluation image."
             )
-        ops = [transforms.Resize(eval_aug["resize"])]
+        if eval_aug.get("aspect_preserving_pad", False):
+            ops = [ResizePadToSquare(data["val_size"], pad_fill)]
+        else:
+            ops = [transforms.Resize(eval_aug["resize"])]
         if eval_aug["center_crop"]:
             ops.append(transforms.CenterCrop(data["val_size"]))
-        else:
+        elif not eval_aug.get("aspect_preserving_pad", False):
             ops.append(transforms.Resize((data["val_size"], data["val_size"])))
 
     ops.extend([transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)])

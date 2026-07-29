@@ -157,6 +157,36 @@ Existing `strict_id` не переобучается: Stage 11B остаётся
 - regression tests и MLflow sync;
 - заранее заданный Stage 14 decision gate.
 
+### Фактический результат Stage 13B
+
+Все 6 runs завершены, `test_evaluated=false`, validation содержит 1280
+изображений и 599 lesion groups. Метрики пересчитаны из predictions;
+максимальная ошибка пересчёта `4.32e-8`. Выполнено 5000 hierarchical
+lesion-group bootstrap повторов.
+
+| Metric | Synthetic mean | Replay mean | Delta | Synthetic wins |
+|---|---:|---:|---:|---:|
+| macro F1 | 0.7619 | 0.7652 | −0.0033 | 1/3 |
+| MCC | 0.6542 | 0.6564 | −0.0022 | 2/3 |
+| balanced accuracy | 0.7697 | 0.7740 | −0.0043 | 1/3 |
+| macro AUPRC | 0.7941 | 0.8077 | **−0.0136** | **0/3** |
+| melanoma recall | 0.7203 | 0.7296 | −0.0093 | 1/3 |
+| melanoma F1 | 0.5294 | 0.5325 | −0.0030 | 2/3 |
+| melanoma AUPRC | 0.5211 | 0.5409 | **−0.0198** | **0/3** |
+| ECE | 0.1211 | 0.1033 | +0.0178, worse | — |
+
+Bootstrap:
+
+- macro F1 delta `−0.0042`, 95% CI `[−0.0323; +0.0236]`;
+- MCC delta `−0.0022`, 95% CI `[−0.0270; +0.0225]`;
+- balanced accuracy delta `−0.0043`, 95% CI `[−0.0319; +0.0283]`.
+
+Геометрический Stage 13A gate улучшил PRDC относительно прежнего `strict_id`,
+но это не перенеслось в downstream ranking utility. Следовательно, PRDC
+coverage/precision/density являются полезными необходимыми diagnostics, но
+не достаточным selector objective. Stage 13B классифицирован как
+`null_or_negative`; locked test остаётся закрытым.
+
 ## Фактический Stage 13A на исходном pool
 
 Дата: 2026-07-29.

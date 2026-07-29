@@ -2,7 +2,7 @@
 
 Дата фиксации: 2026-07-29, до получения результатов Stage 13B.
 
-Статус: `waiting_for_stage13b`. Locked test закрыт.
+Статус: `branch_c_preprocessing_qualification`. Locked test закрыт.
 
 ## Цель
 
@@ -178,6 +178,53 @@ Vendi, но плохо покрывать полезную real support и ис�
 Decision gate реализован в `configs/stage14_decision.yaml` и
 `tools/check_stage14_readiness.py`.
 
+## Фактическое решение после Stage 13B
+
+Stage 13B завершился `null_or_negative`:
+
+- macro F1 synthetic − replay `−0.0033`, 1/3 wins;
+- MCC `−0.0022`, 2/3 wins;
+- macro AUPRC `−0.0136`, 0/3 wins;
+- melanoma AUPRC `−0.0198`, 0/3 wins;
+- macro F1 lesion-bootstrap 95% CI `[−0.0323; +0.0236]`;
+- ECE в среднем хуже на `+0.0178`.
+
+Predeclared decision gate выбрал `C_preprocessing_qualification`. Более
+крупный generator и дальнейший downstream synthetic training заблокированы
+до квалификации входного real-only representation.
+
+### Stage 14P-1: full-frame aspect-preserving policy
+
+Первый запуск меняет один фактор:
+
+- historical control: три завершённых Stage 11 ConvNeXt-S seeds с
+  `RandomResizedCrop` train и resize/center-crop eval;
+- candidate: те же data split, model, optimizer, schedule, augmentation
+  после geometry step и seeds 42–44;
+- train/eval сохраняют полный кадр с исходным aspect ratio;
+- изображение вписывается в 384×384 и дополняется цветом ImageNet mean,
+  который после normalization равен примерно нулю;
+- random/center crop отключены;
+- real-only, `evaluation.run_test=false`.
+
+HAM10000 lesion masks на сервере отсутствуют. Поэтому lesion-guided crop не
+смешивается с текущей проверкой: сначала потребуется frozen segmentation,
+mask-quality и subgroup audit. Hair removal и color constancy также остаются
+отдельными последующими факторами.
+
+Gate проверяет:
+
+- фактическое решение Branch C;
+- полное совпадение model/training/imbalance recipe с квалифицированным
+  ConvNeXt-S;
+- три целых historical baseline runs;
+- real-only train и lesion-group disjointness;
+- отсутствие locked-test evaluation.
+
+Promotion требует положительного paired mean по macro AUPRC и отсутствия
+ухудшения melanoma AUPRC/recall. Macro F1 без ranking improvement не
+достаточен.
+
 ### Branch A: strong positive Stage 13B
 
 Условие:
@@ -256,4 +303,3 @@ validation delta. Минимальный пакет:
    negative-control class, например `nv`?
 5. Какой privacy threshold считать достаточным для source-conditioned
    images: абсолютный nearest distance или отношение к real-real neighbours?
-
