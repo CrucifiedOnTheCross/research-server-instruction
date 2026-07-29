@@ -49,6 +49,7 @@ TEXT_FIELDS = (
     "preprocess_mode",
     "stage10_stratum",
     "stage13_tier",
+    "stage15a_variant",
 )
 
 

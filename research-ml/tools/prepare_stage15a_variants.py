@@ -331,11 +331,17 @@ def main() -> None:
     write_arm(base, crop_rows, split_dir, "offline_crop")
     write_arm(base, vae_rows, split_dir, "vae_roundtrip")
     write_arm(base, img2img_rows, split_dir, "img2img_strength05")
+    pd.concat(
+        [crop_rows, vae_rows, img2img_rows],
+        ignore_index=True,
+        sort=False,
+    ).to_csv(split_dir / "visual_audit_rows.csv", index=False)
 
     plan["artifacts"] = {
         "offline_crop_rows": int(len(crop_rows)),
         "vae_roundtrip_rows": int(len(vae_rows)),
         "img2img_strength05_rows": int(len(img2img_rows)),
+        "visual_audit_rows": int(len(crop_rows) + len(vae_rows) + len(img2img_rows)),
         "split_dir": str(split_dir),
         "image_root": str(data_root / output_root),
     }
