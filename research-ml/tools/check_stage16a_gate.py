@@ -46,6 +46,8 @@ def validate(data_root: Path, check_files: bool) -> tuple[dict, list[str]]:
     expected_classes = set(CLASS_NAMES)
     if summary.get("protocol") != "stage16a_isic2019_curated_v1":
         errors.append("Unexpected dataset protocol")
+    if summary.get("split_policy_version") != "isic2019_connected_group_v2":
+        errors.append("Unexpected or obsolete split policy version")
     if summary.get("locked_test_evaluated") is not False:
         errors.append("Dataset summary does not keep locked test closed")
     if len(manifest) + int(summary.get("quarantined_label_conflicts", 0)) != EXPECTED_IMAGES:
@@ -74,7 +76,7 @@ def validate(data_root: Path, check_files: bool) -> tuple[dict, list[str]]:
     if combined_ids != set(manifest["image_id"].astype(str)):
         errors.append("Split image IDs do not exactly cover the usable manifest")
 
-    for column in ("group_id", "lesion_id", "sha256", "visual_hash"):
+    for column in ("group_id", "lesion_id", "sha256"):
         values: dict[str, set[str]] = {}
         for name, frame in splits.items():
             values[name] = {

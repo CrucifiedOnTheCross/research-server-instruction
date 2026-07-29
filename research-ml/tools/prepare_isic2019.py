@@ -285,10 +285,9 @@ def assign_connected_groups(
 
     for row in manifest:
         image_id = str(row["image_id"])
-        keys = [
-            f"sha256:{row['sha256']}",
-            f"visual_hash:{row['visual_hash']}",
-        ]
+        # Perceptual hashes are audit signals, not identity keys. Even exact
+        # 64-bit dHash matches can collide and create large transitive groups.
+        keys = [f"sha256:{row['sha256']}"]
         lesion_id = str(row.get("lesion_id", "")).strip()
         if lesion_id:
             keys.append(f"lesion:{lesion_id}")
@@ -373,7 +372,7 @@ def split_groups(
             for row in rows:
                 row["split"] = destination
                 row["split_seed"] = seed
-                row["split_policy_version"] = "isic2019_connected_group_v1"
+                row["split_policy_version"] = "isic2019_connected_group_v2"
             splits[destination].extend(rows)
             current[destination] += len(rows)
         if any(
@@ -385,7 +384,7 @@ def split_groups(
 
 
 def validate_disjoint(splits: dict[str, list[dict[str, Any]]]) -> None:
-    for key in ("group_id", "lesion_id", "sha256", "visual_hash"):
+    for key in ("group_id", "lesion_id", "sha256"):
         sets: dict[str, set[str]] = {}
         for split, rows in splits.items():
             sets[split] = {
@@ -529,7 +528,7 @@ def main() -> None:
             str(row["source"]) == "ham10000" for row in manifest
         ),
         "split_seed": args.seed,
-        "split_policy_version": "isic2019_connected_group_v1",
+        "split_policy_version": "isic2019_connected_group_v2",
         "locked_test_evaluated": False,
         "splits": {
             split: {

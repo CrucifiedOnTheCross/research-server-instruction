@@ -524,7 +524,7 @@ patient-level external binary stress test. ISIC 2024 не смешивается
 
 - `tools/prepare_isic2019.py` загружает официальные архивы, проверяет ZIP,
   декодирование, размеры, SHA-256 и perceptual dHash;
-- связанные по lesion ID, точному или визуальному дубликату изображения
+- связанные по lesion ID или точному SHA-256 изображения
   объединяются до разбиения;
 - группы с конфликтующими диагнозами помещаются в quarantine;
 - SCC сохраняется отдельным восьмым классом и не отображается в HAM10000
@@ -553,6 +553,31 @@ Stage 16B является real-only qualification, а не проверкой �
 (`evaluation.run_test=false`). Основной критерий выбора:
 `val/auprc_ovr_macro`; дополнительно анализируются macro F1, MCC, balanced
 accuracy, ECE, worst-class recall, melanoma и SCC AUPRC.
+
+### Исправление Stage 16A перед запуском
+
+Первый data audit обнаружил `978` quarantined изображений в 48 конфликтных
+компонентах. Крупнейшая компонента ошибочно содержала 429 изображений всех
+восьми классов. Причиной было использование точного совпадения 64-bit dHash
+как identity edge: коллизии образовали транзитивные цепочки между
+несвязанными lesions.
+
+До запуска GPU protocol исправлен до
+`isic2019_connected_group_v2`:
+
+- blocking identity edges: official lesion ID и точный SHA-256;
+- dHash сохраняется в manifest как diagnostic candidate signal;
+- dHash не используется для group assignment, quarantine или split
+  disjointness без последующего image-level подтверждения;
+- добавлен regression test, запрещающий объединение разных изображений
+  только по совпавшему perceptual hash;
+- dataset manifest, splits, summary и gate пересоздаются из official
+  cached artifacts.
+
+Это изменение исключает систематическое удаление трудных примеров и
+искажение class distribution до обучения. Near-duplicate audit по
+perceptual embeddings остаётся отдельным анализом и не должен автоматически
+менять locked split.
 
 ## Использованные источники
 

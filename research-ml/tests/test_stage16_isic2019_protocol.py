@@ -52,6 +52,13 @@ class Stage16ISIC2019Tests(unittest.TestCase):
         self.assertFalse(quarantine)
         self.assertEqual(len({item["group_id"] for item in kept}), 1)
 
+    def test_visual_hash_collision_does_not_connect_distinct_images(self) -> None:
+        rows = [row("a", "mel"), row("b", "nv")]
+        rows[1]["visual_hash"] = rows[0]["visual_hash"]
+        kept, quarantine = assign_connected_groups(rows)
+        self.assertFalse(quarantine)
+        self.assertEqual(len({item["group_id"] for item in kept}), 2)
+
     def test_conflicting_duplicate_labels_are_quarantined(self) -> None:
         rows = [row("a", "mel", digest="same"), row("b", "nv", digest="same")]
         kept, quarantine = assign_connected_groups(rows)
