@@ -536,6 +536,8 @@ patient-level external binary stress test. ISIC 2024 не смешивается
   policy;
 - `scripts/start_stage16a_data_container.sh` выполняет загрузку и gate в
   отдельном CPU-контейнере;
+- `scripts/start_stage16_smoke_container.sh` проверяет полный GPU path на
+  64 train и 64 validation изображениях без открытия test;
 - `scripts/start_stage16b_container.sh` запускает GPU screening только после
   успешного data gate.
 
