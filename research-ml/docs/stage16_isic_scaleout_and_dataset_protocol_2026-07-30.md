@@ -628,6 +628,46 @@ Stage 16B screening запущен в контейнере
 как научный результат. Канонический вывод делается после завершения
 заранее заданных arms и multi-seed подтверждения.
 
+### Stage 16B screening: решение до confirmation
+
+Все три seed-42 runs завершились с полными structured artifacts и
+`test_evaluated=false`.
+
+| Arm | Macro AUPRC | Macro F1 | Bal. acc. | MCC | ECE | Worst recall |
+|---|---:|---:|---:|---:|---:|---:|
+| Natural CE | 0.76363 | 0.70009 | 0.67727 | 0.73654 | 0.04464 | 0.35385 |
+| Weighted sampler CE | 0.75028 | 0.68815 | 0.72498 | 0.71899 | 0.03973 | 0.38462 |
+| Balanced Softmax | 0.76372 | 0.69683 | 0.71468 | 0.73551 | 0.14188 | 0.41538 |
+
+Balanced Softmax minus Natural CE:
+
+- macro AUPRC: `+0.00009`, практически нулевой screening effect;
+- macro F1: `-0.00326`;
+- balanced accuracy: `+0.03741`;
+- MCC: `-0.00103`;
+- ECE: `+0.09724`, заметное ухудшение calibration;
+- worst-class recall: `+0.06154`;
+- melanoma AUPRC: `-0.00820`;
+- SCC AUPRC: `-0.01830`.
+
+Weighted sampler не проходит primary ranking criterion: macro AUPRC ниже
+Natural CE на 0.01335, macro F1 и MCC также ниже. Его улучшение SCC recall
+является secondary threshold effect и само по себе не оправдывает
+confirmation.
+
+До просмотра seeds 43-44 зафиксировано решение:
+
+1. Natural CE остаётся обязательным real-only baseline.
+2. Balanced Softmax является единственным imbalance-кандидатом для
+   confirmation, потому что primary AUPRC не ухудшена, а minority recall
+   выше.
+3. Weighted sampler исключается из дальнейшего Stage 16B compute.
+4. Confirmation выполняется на seeds 43 и 44 с неизменными split,
+   initialization, batch 48, scheduler и monitor.
+5. Вывод о Balanced Softmax принимается только по paired multi-seed effect,
+   calibration и lesion-group bootstrap; seed-42 tie не считается
+   улучшением.
+
 ## Использованные источники
 
 1. ISIC Challenge Datasets. Official releases, metadata, duplicate lists and
