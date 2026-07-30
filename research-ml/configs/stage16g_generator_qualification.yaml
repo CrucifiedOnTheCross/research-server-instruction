@@ -1,0 +1,92 @@
+protocol: stage16g_generator_qualification_v1
+locked_test_policy: closed
+split_policy: isic2019_connected_group_v2
+primary_endpoint: val/auprc_ovr_macro
+
+data:
+  root: /srv/research/projects/default/isic2019
+  train_split: splits/train.csv
+  validation_split: splits/val.csv
+  locked_test_split: splits/locked_test.csv
+  mask_archive:
+    url: https://isic-archive.s3.amazonaws.com/challenges/2018/ISIC2018_Task1_Training_GroundTruth.zip
+    provenance: ISIC 2018 Task 1 official training ground truth
+  mask_manifest: splits/stage16g/mask_qualified_train.csv
+  mask_inventory: splits/stage16g/mask_inventory.json
+
+targeting:
+  # Final targets are intersected with mask-qualified train lesions.
+  candidate_classes: [mel, scc, bcc, ak, df, vasc]
+  minimum_unique_lesions_per_class: 20
+  maximum_sources_per_class: 160
+  candidates_per_source: 4
+  source_selection: train_only_multiencoder_kcenter
+  embedding_encoders:
+    - facebook/dinov2-base
+    - timm/convnext_small.fb_in22k_ft_in1k_384
+  validation_or_test_features_allowed: false
+
+generators:
+  generic_sd15_img2img_control:
+    enabled: true
+    role: historical_negative_control
+    model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
+    source_conditioned: true
+    strengths: [0.05, 0.10]
+    downstream_promotion_allowed: false
+  derm_t2im_pilot:
+    enabled: false
+    role: binary_domain_checkpoint_feasibility
+    model_url: https://huggingface.co/MAli-Farooq/Derm-T2IM
+    source_conditioned: false
+    label_scope: binary_benign_malignant
+    downstream_promotion_allowed: false
+  didgen_region_aware:
+    enabled: true
+    role: preferred_mask_conditioned_candidate
+    repository: https://github.com/junjie-shentu/DiDGen
+    revision: 1ca3b085bbb42462e5a3cca8d0b4dfefb494b9c8
+    base_model: stabilityai/stable-diffusion-2-1-base
+    license: PolyForm-Noncommercial-1.0.0
+    source_conditioned: true
+    requires_segmentation_mask: true
+    maximum_training_steps_pilot: 1000
+    downstream_promotion_allowed: true
+
+qualification:
+  gpu:
+    minimum_free_vram_gib: 14.0
+    minimum_free_disk_gib: 150.0
+  pool:
+    source_group_unique: true
+    generator_revision_required: true
+    deterministic_seed_required: true
+    original_and_generated_sha256_required: true
+  image_quality:
+    mask_iou_minimum: 0.70
+    independent_label_agreement_minimum: 0.80
+    source_near_duplicate_cosine_maximum: 0.995
+    artifact_rejection_required: true
+  feature_geometry:
+    prdc_precision_minimum: 0.80
+    use_train_reference_only: true
+    fill_undercovered_train_clusters: true
+  downstream:
+    comparison: equal_dose_synthetic_vs_source_matched_real_replay
+    seeds: [42, 43, 44]
+    minimum_macro_auprc_delta: 0.005
+    maximum_mcc_degradation: 0.005
+    maximum_ece_degradation: 0.02
+    require_positive_sign_seeds: 2
+    locked_test_evaluated: false
+
+nuisance_factors:
+  hair:
+    main_generator_condition: false
+    policy: separate_robustness_stress_test_only
+  skin_tone:
+    main_generator_condition: false
+    policy: disabled_without_validated_tone_labels
+  color_constancy:
+    main_generator_condition: false
+    policy: separate_real_only_ablation
