@@ -27,6 +27,7 @@ from tools.prepare_stage16g_segmentation_data import split_segmentation_rows
 from tools.select_stage16g_generator_masks import select_masks
 from tools.prepare_stage16g_generator_smoke import select_morphology_anchors
 from tools.generate_stage16g_generator_smoke import prepare_mask
+from tools.stage16g_generator_metrics import summarize_arm
 
 
 def write_split(path: Path, rows: list[dict[str, str]]) -> None:
@@ -80,6 +81,31 @@ class Stage16GProtocolTests(unittest.TestCase):
             prepared = np.asarray(prepare_mask(path, 8, dilation=1, blur_radius=0))
             self.assertEqual(set(np.unique(prepared)), {0, 255})
             self.assertGreater(int((prepared > 0).sum()), 4)
+
+    def test_generator_gate_rejects_near_duplicates(self) -> None:
+        frame = pd.DataFrame(
+            {
+                "output_hash_valid": [True, True],
+                "label_agreement": [True, True],
+                "true_label_probability": [0.9, 0.9],
+                "source_cosine_similarity": [0.996, 0.99],
+                "regenerated_mask_iou": [0.8, 0.8],
+                "regenerated_mask_dice": [0.9, 0.9],
+                "outside_mask_mae": [0.01, 0.01],
+                "inside_mask_mae": [0.2, 0.2],
+            }
+        )
+        gates = {
+            "expected_images_per_arm": 2,
+            "maximum_failed_images": 0,
+            "minimum_independent_label_agreement": 0.8,
+            "minimum_regenerated_mask_iou": 0.7,
+            "maximum_outside_mask_mae": 0.03,
+            "maximum_source_cosine_similarity": 0.995,
+        }
+        summary = summarize_arm(frame, gates)
+        self.assertEqual(summary["near_duplicate_fraction"], 0.5)
+        self.assertFalse(summary["technical_gate_passed"])
 
     def test_mask_metrics_reward_exact_overlap(self) -> None:
         truth = np.zeros((8, 8), dtype=bool)
