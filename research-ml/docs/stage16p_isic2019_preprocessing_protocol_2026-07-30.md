@@ -128,6 +128,93 @@ Ranking effects анализируются отдельно от threshold effec
 Stage 16P ставится в очередь после контейнера
 `research-stage16b-confirmation`, чтобы не конкурировать за RTX 5080.
 
+## Фактические результаты
+
+Оба seed-42 screening runs завершены с полными structured artifacts,
+`weights_source=ema` и `test_evaluated=false`. Baseline и кандидаты
+оценивались на одних 3799 изображениях и 3210 lesion groups.
+
+| Arm | Macro AUPRC | Macro F1 | MCC | Bal. acc. | ECE | Mel AUPRC | SCC AUPRC |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Existing square crop | 0.76363 | 0.70009 | 0.73654 | 0.67727 | 0.04464 | 0.78505 | 0.53507 |
+| Aspect pad | 0.76443 | 0.70710 | 0.72431 | 0.68555 | 0.05658 | 0.76917 | 0.56804 |
+| Dark-FOV crop + pad | 0.76138 | 0.70192 | 0.72395 | 0.67984 | 0.06205 | 0.76275 | 0.55850 |
+
+Относительно existing square crop:
+
+| Arm | Macro AUPRC | MCC | ECE | Mel AUPRC | SCC AUPRC | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| Aspect pad | +0.00080 | -0.01223 | +0.01194 | -0.01588 | +0.03298 | fail |
+| Dark-FOV crop + pad | -0.00225 | -0.01259 | +0.01741 | -0.02230 | +0.02344 | fail |
+
+Оба arms нарушают минимум три preregistered условия: недостаточный macro
+AUPRC effect, MCC degradation более 0.005 и melanoma AUPRC degradation
+более 0.01. Поэтому seeds 43-44 не запускались.
+
+### Paired lesion-group bootstrap
+
+5000 bootstrap repeats на seed 42:
+
+| Arm и metric | Mean delta | 95% CI |
+|---|---:|---:|
+| Aspect pad, macro AUPRC | +0.00064 | [-0.01310; +0.01449] |
+| Aspect pad, MCC | -0.01223 | [-0.02682; +0.00174] |
+| Aspect pad, ECE | +0.01166 | [+0.00235; +0.02079] |
+| Aspect pad, melanoma AUPRC | -0.01592 | [-0.03305; +0.00197] |
+| Dark-FOV pad, macro AUPRC | -0.00219 | [-0.01620; +0.01189] |
+| Dark-FOV pad, MCC | -0.01257 | [-0.02699; +0.00206] |
+| Dark-FOV pad, ECE | +0.01725 | [+0.00769; +0.02690] |
+| Dark-FOV pad, melanoma AUPRC | -0.02212 | [-0.04174; -0.00188] |
+
+Ни один arm не показывает practically relevant общий ranking gain.
+Ухудшение ECE устойчиво для обоих, а для dark-FOV arm также подтверждено
+ухудшение melanoma AUPRC.
+
+### Source и dark-frame audit
+
+Dark-FOV transform фактически изменил crop только для 153 из 3799
+validation images (4.0%). На этой группе:
+
+- baseline macro AUPRC: 0.62231;
+- aspect pad: 0.65270;
+- dark-FOV crop + pad: 0.61775.
+
+Следовательно, локальный выигрыш связан с сохранением полного кадра через
+aspect pad, а не с применённой dark-border эвристикой. Упрощённый crop не
+решает задачу даже в своей целевой artifact subgroup.
+
+Обнаружена source interaction:
+
+| Source | Existing crop | Aspect pad | Dark-FOV pad |
+|---|---:|---:|---:|
+| HAM10000, macro AUPRC | 0.82583 | 0.81482 | 0.81169 |
+| ISIC 2019 non-HAM, macro AUPRC | 0.68551 | 0.71109 | 0.71255 |
+
+Оба full-frame варианта улучшают более сложную non-HAM часть, но ухудшают
+HAM10000 настолько, что общий preregistered endpoint не растёт. Это
+научно интересный признак domain/source-dependent preprocessing, но он
+получен в secondary subgroup analysis одного seed и не является основанием
+для post-hoc выбора arm.
+
+## Решение
+
+1. Сохранить existing square-crop Natural CE как основной Stage 16 baseline.
+2. Не запускать Stage 16P confirmation на seeds 43-44.
+3. Не добавлять simplified dark-FOV crop в основной pipeline.
+4. Зафиксировать source interaction как гипотезу для будущего external
+   robustness исследования, а не оптимизировать preprocessing по текущей
+   validation выборке.
+5. Следующим основным этапом выбрать Stage 16C: equal-dose synthetic
+   augmentation против source-matched real replay на ISIC 2019 с Natural
+   CE baseline. Color constancy оставить отдельным real-only фактором,
+   который нельзя смешивать со Stage 16C contrast.
+
+Канонические результаты:
+`outputs/reports/stage16p_analysis/analysis_summary.json`,
+`screening_metrics.csv`, `paired_lesion_bootstrap.csv`,
+`subgroup_metrics.csv`, `dark_fov_candidates.csv` и
+`artifact_integrity.csv`.
+
 ## Зафиксированные дальнейшие факторы
 
 Не входят в текущий screening:
