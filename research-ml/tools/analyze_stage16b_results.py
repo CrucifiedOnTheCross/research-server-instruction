@@ -171,7 +171,7 @@ def load_runs(
             config = yaml.safe_load((run_dir / "config.resolved.yaml").read_text(encoding="utf-8"))
             if config["training"]["monitor"] != "val/auprc_ovr_macro":
                 raise ValueError(f"{run_dir}: unexpected monitor {config['training']['monitor']}")
-            if int(config["data"]["batch_size"]) != 48:
+            if int(config["training"]["batch_size"]) != 48:
                 raise ValueError(f"{run_dir}: unexpected batch size")
 
             frame = pd.read_csv(run_dir / "val_predictions_best.csv")
@@ -225,7 +225,7 @@ def load_runs(
                     "missing_artifacts": "",
                     "metric_recompute_max_abs_error": max_error,
                     "monitor": config["training"]["monitor"],
-                    "batch_size": int(config["data"]["batch_size"]),
+                    "batch_size": int(config["training"]["batch_size"]),
                 }
             )
     assert expected_classes is not None
