@@ -546,3 +546,52 @@ export `PYTHONPATH`. A completed-run guard also prevents container retries after
 an analysis-only failure from rewriting the original training duration and
 peak-memory provenance. Qualification is rerun from the immutable manifests and
 images without retraining or regeneration.
+
+### P1 qualification result
+
+The repaired analysis completed over all 96 immutable candidates. Hash
+failures and near duplicates were zero, and `test_evaluated=false`.
+
+| Arm | Label agreement | Mask IoU | Outside-mask MAE | Source cosine | Gate |
+|---|---:|---:|---:|---:|---|
+| P0 generic mask inpaint | 0.333 | 0.637 | 0.0128 | 0.328 | fail |
+| P0 historical img2img | 0.625 | 0.827 | 0.0208 | 0.668 | fail |
+| P1 domain-LoRA img2img | 0.312 | 0.610 | 0.0540 | 0.331 | fail |
+| P1 domain-LoRA mask inpaint | 0.333 | 0.680 | 0.0129 | 0.448 | fail |
+
+The adapted inpainting arm improved mask IoU by `+0.043` and source-feature
+similarity by `+0.120` over generic inpainting while preserving the background
+equally well. It did not improve class agreement at all and remained below both
+the `0.80` agreement and `0.70` IoU gates. Per-class agreement was `ak=0.625`,
+`bcc=0.125`, `df=0.125`, `mel=0.250`, `scc=0.125`, and `vasc=0.750`.
+The result is therefore not a marginal pass: diagnosis conditioning failed for
+four of six target classes.
+
+Visual audit confirms that many outputs are plausible dermoscopic images and
+that mask conditioning usually preserves the surrounding skin. The principal
+failure is semantic: candidates often change lesion morphology into another
+diagnostic class or erase weak lesions. This agrees with the classifier audit
+and is not explained by corrupt files or background leakage.
+
+### Scientific decision
+
+Stage 16C downstream classification is blocked for both P1 arms. Longer
+training of the same adapter is not justified by these data. P1 trained
+attention LoRA on the four-channel text-to-image SD1.5 UNet and then reused its
+compatible attention weights in the nine-channel inpainting UNet. This adds a
+global dermoscopy appearance prior, but it never trains the adapter under the
+masked-reconstruction objective used at inference and supplies diagnosis only
+through weak natural-language prompts. The negative result therefore isolates
+a concrete architectural limitation rather than showing that all
+domain-adapted generation is ineffective.
+
+The next generator experiment, if pursued, must train the inpainting model
+under the actual mask-conditioned objective and add an explicit
+class-discriminative constraint or reproducible region-aware conditioning.
+It must retain the same held-out anchors, equal generation budget, P0/P1
+controls, and qualification gates. Until that implementation passes generator
+qualification, synthetic images must not enter the ISIC classifier study.
+
+The persistent visual-audit dataset is
+`isic2019-stage16g-p1-generator-smoke` in FiftyOne. Canonical numerical
+artifacts are under `outputs/stage16g_generator_p1_smoke/`.
