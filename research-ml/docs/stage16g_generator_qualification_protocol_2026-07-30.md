@@ -534,3 +534,15 @@ The 5,000-step run started on 2026-07-30. At step 550, GPU utilization was
 contained both the 12.8 MB LoRA and 38.6 MB resumable optimizer/scheduler state.
 No generator candidate or downstream classifier result is inferred from the
 training loss.
+
+### P1 completion incident
+
+The 5,000 training steps and both 48-image generator arms completed, but the
+first qualification attempt failed before metric computation because the
+analysis entry point did not add the repository root to Python's import path.
+No generated image, checkpoint, split or preregistered gate was changed.
+The analyzer now bootstraps the project path itself and both shell entry points
+export `PYTHONPATH`. A completed-run guard also prevents container retries after
+an analysis-only failure from rewriting the original training duration and
+peak-memory provenance. Qualification is rerun from the immutable manifests and
+images without retraining or regeneration.

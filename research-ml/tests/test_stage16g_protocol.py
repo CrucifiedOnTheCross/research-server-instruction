@@ -325,6 +325,22 @@ class Stage16GProtocolTests(unittest.TestCase):
             )
             self.assertFalse(report["locked_test_evaluated"])
 
+    def test_completed_lora_summary_is_preserved(self) -> None:
+        from tools.stage16g_training_state import completed_summary
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = {
+                "complete": True,
+                "completed_steps": 5000,
+                "elapsed_seconds": 123.0,
+            }
+            (root / "summary.json").write_text(
+                json.dumps(expected), encoding="utf-8"
+            )
+            self.assertEqual(completed_summary(root, 5000), expected)
+            self.assertIsNone(completed_summary(root, 5001))
+
 
 if __name__ == "__main__":
     unittest.main()

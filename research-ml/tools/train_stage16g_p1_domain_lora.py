@@ -18,6 +18,8 @@ from PIL import Image, ImageOps
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import functional as vision
 
+from tools.stage16g_training_state import completed_summary
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Stage 16G-P1 dermoscopy domain LoRA.")
@@ -114,6 +116,10 @@ def main() -> None:
     output_root = Path(args.output_root or config["data"]["output_root"])
     lora_root = output_root / "lora"
     output_root.mkdir(parents=True, exist_ok=True)
+    existing_summary = completed_summary(output_root, max_steps)
+    if existing_summary is not None:
+        print(json.dumps(existing_summary, indent=2))
+        return
     frame = pd.read_csv(config["data"]["training_manifest"])
     data_root = Path(config["data"]["root"])
     batch_size = int(training["train_batch_size"])
