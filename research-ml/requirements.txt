@@ -16,3 +16,4 @@ isic-cli
 diffusers
 transformers
 accelerate
+peft==0.20.0

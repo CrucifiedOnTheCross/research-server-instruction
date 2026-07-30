@@ -500,6 +500,12 @@ uses an on-failure restart policy and resumes from the latest complete
 checkpoint. A separate two-step output directory is required for the initial
 VRAM/compatibility smoke and is never included in scientific summaries.
 
+Technical smoke note: the first P1 VRAM smoke stopped before optimizer step 1
+because PyTorch 2.12 does not accept a `dtype` keyword in `Tensor.cuda()`.
+Tensor transfer was changed to `Tensor.to(device="cuda", dtype=...)`. No
+training result, hyperparameter, data row or generator output was produced by
+the failed attempt. PEFT is pinned to `0.20.0` for the project environment.
+
 ### Literature used for implementation
 
 - Hugging Face Diffusers, official text-to-image LoRA training script and

@@ -240,7 +240,9 @@ def main() -> None:
     unet.train()
     for batch in loader:
         micro_step += 1
-        images = batch["pixel_values"].cuda(non_blocking=True, dtype=torch.bfloat16)
+        images = batch["pixel_values"].to(
+            device="cuda", dtype=torch.bfloat16, non_blocking=True
+        )
         with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
             latents = vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
         noise = torch.randn_like(latents)
