@@ -516,3 +516,21 @@ the failed attempt. PEFT is pinned to `0.20.0` for the project environment.
 - Shabu et al., *A Generative AI Approach for Reducing Skin Tone Bias in Skin
   Cancer Classification*, arXiv:2602.14356. This supports dermoscopy-domain
   LoRA feasibility but does not justify skin-tone conditioning in our main arm.
+
+### P1 launch record
+
+The train-only manifest contains 5,201 unique lesion groups after removing all
+24 anchor groups. Counts are `ak=173`, `bcc=710`, `bkl=775`, `df=59`,
+`mel=783`, `nv=2500`, `scc=132`, and `vasc=69`; optimization sampling is
+uniform by class rather than proportional to these counts.
+
+The two-step compatibility smoke completed with finite loss `0.05926`, exact
+SD1.5 revision `451f4fe16113bff5a5d2269ed5ad43b0592e9a14`, 3,188,736
+trainable parameters and peak allocated VRAM 2,961.8 MiB. The adapter was then
+loaded successfully into both the SD1.5 img2img and SD1.5 inpainting pipelines.
+
+The 5,000-step run started on 2026-07-30. At step 550, GPU utilization was
+100%, temperature 64 C, container restart count zero, and checkpoint 500
+contained both the 12.8 MB LoRA and 38.6 MB resumable optimizer/scheduler state.
+No generator candidate or downstream classifier result is inferred from the
+training loss.
