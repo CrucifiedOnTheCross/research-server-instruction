@@ -82,6 +82,10 @@ segmentation_bootstrap:
   train_source: isic2018_masks_excluding_all_stage16_ids
   qualification_source: stage16_train_overlap_only
   downstream_validation_or_test_allowed: false
+  pseudo_mask_candidates_per_class: 320
+  pseudo_mask_minimum_confidence: 0.80
+  pseudo_mask_minimum_largest_component_fraction: 0.85
+  pseudo_mask_maximum_components: 3
 
 qualification:
   gpu:

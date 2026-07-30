@@ -13,6 +13,25 @@ ISIC 2018 masks в Stage 16 train попали 303 изображения: 57 `m
 `nv`. Для `scc/bcc/ak/df/vasc` overlap равен нулю. Поэтому эти masks нельзя
 выдавать за восьмиклассовую разметку ISIC 2019.
 
+## Фактический результат Stage 16G-S
+
+Дата завершения: 2026-07-30.
+
+- segmentation train: 1822 официальных ISIC 2018 image-mask pairs;
+- train-only qualification: 303 изображения Stage 16 train;
+- исключено по Stage 16 validation/locked-test ID: 469;
+- исключено по exact hash дополнительно: 0;
+- locked test не открывался;
+- лучший epoch: 29 из 30;
+- qualification Dice: 0.92293;
+- qualification IoU: 0.86355;
+- время обучения: 1256 секунд.
+
+Предварительно заданные gates `Dice >= 0.85` и `IoU >= 0.75` пройдены.
+Это разрешает следующий технический шаг: inference pseudo-masks только на
+редких train-классах. До генерации выполняются per-image и area-quartile
+audit, component/confidence gates и визуальная проверка.
+
 ## Исследовательский вопрос
 
 Можно ли получить синтетические дерматоскопические изображения, которые:

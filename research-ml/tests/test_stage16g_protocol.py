@@ -6,10 +6,16 @@ import unittest
 import zipfile
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import yaml
 
 from tools.check_stage16g_readiness import validate
+from tools.stage16g_mask_metrics import (
+    deterministic_group_sample,
+    mask_characteristics,
+    overlap_metrics,
+)
 from tools.prepare_stage16g_masks import (
     build_train_mask_manifest,
     choose_mask_member,
@@ -26,6 +32,30 @@ def write_split(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 class Stage16GProtocolTests(unittest.TestCase):
+    def test_mask_metrics_reward_exact_overlap(self) -> None:
+        truth = np.zeros((8, 8), dtype=bool)
+        truth[2:6, 2:6] = True
+        metrics = overlap_metrics(truth, truth)
+        self.assertEqual(metrics["dice"], 1.0)
+        self.assertEqual(metrics["iou"], 1.0)
+
+    def test_mask_characteristics_detect_fragmentation(self) -> None:
+        probability = np.zeros((8, 8), dtype=np.float32)
+        probability[1:3, 1:3] = 0.9
+        probability[5:7, 5:7] = 0.9
+        metrics = mask_characteristics(probability, threshold=0.5)
+        self.assertEqual(metrics["component_count"], 2)
+        self.assertAlmostEqual(metrics["largest_component_fraction"], 0.5)
+
+    def test_pseudo_mask_sampling_is_group_unique(self) -> None:
+        rows = [
+            {"image_id": "a", "group_id": "g1", "label": "mel"},
+            {"image_id": "b", "group_id": "g1", "label": "mel"},
+            {"image_id": "c", "group_id": "g2", "label": "mel"},
+        ]
+        selected = deterministic_group_sample(rows, ["mel"], maximum=10)
+        self.assertEqual(len(selected), 2)
+        self.assertEqual(len({row["group_id"] for row in selected}), 2)
     def test_mask_name_parser_is_case_insensitive(self) -> None:
         self.assertEqual(
             image_id_from_mask_name("nested/isic_0012345_segmentation.PNG"),
