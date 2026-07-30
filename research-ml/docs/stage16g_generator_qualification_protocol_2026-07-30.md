@@ -8,6 +8,11 @@
 `scripts/start_stage16g_preparation_container.sh`, поскольку project `.venv`
 привязан к Python CUDA-образа и не предназначен для выполнения на host.
 
+Фактический G0 gate: закрыт для прямого DiDGen pilot. Из 2594 официальных
+ISIC 2018 masks в Stage 16 train попали 303 изображения: 57 `mel` и 246
+`nv`. Для `scc/bcc/ak/df/vasc` overlap равен нулю. Поэтому эти masks нельзя
+выдавать за восьмиклассовую разметку ISIC 2019.
+
 ## Исследовательский вопрос
 
 Можно ли получить синтетические дерматоскопические изображения, которые:
@@ -184,6 +189,20 @@ split. Совпадения с validation/locked test фиксируются т�
 Если smoke не воспроизводится на 16 GB или pipeline требует неподтверждённых
 ручных изменений, кандидат получает статус blocked, а не silently modified.
 
+Перед генеративным smoke выполняется Stage 16G-S:
+
+- обучить DeepLabV3-ResNet50 на официальных ISIC 2018 image-mask pairs,
+  исключив все image IDs и точные hashes Stage 16 validation/locked test;
+- 303 совпадающих изображения Stage 16 train использовать только как
+  segmentation qualification;
+- сохранить Dice/IoU по эпохам и checkpoint по validation Dice;
+- только после Dice >= 0.85 и IoU >= 0.75 разрешить pseudo-masks редких
+  train-классов;
+- редкие pseudo-masks дополнительно проверить blinded audit в FiftyOne.
+
+Этот дизайн воспроизводит недостающий segmentation step из Jiang et al.,
+не обучаясь на downstream validation/test.
+
 ### G2. Train-only equal-budget pilot
 
 Для mask-qualified редких классов:
@@ -256,6 +275,10 @@ downstream utility.
     https://arxiv.org/abs/2301.04802
 11. Official ISIC challenge data:
     https://challenge.isic-archive.com/data/
+12. Jiang et al., ISIC 2019 class-conditioned inpainting and OOD selection:
+    https://arxiv.org/abs/2605.03221
+13. MedSAM official code: https://github.com/bowang-lab/MedSAM
+14. BiomedParse official code: https://github.com/microsoft/BiomedParse
 
 ## Зафиксированные ограничения
 

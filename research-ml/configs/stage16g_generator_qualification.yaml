@@ -11,8 +11,13 @@ data:
   mask_archive:
     url: https://isic-archive.s3.amazonaws.com/challenges/2018/ISIC2018_Task1_Training_GroundTruth.zip
     provenance: ISIC 2018 Task 1 official training ground truth
+  segmentation_image_archive:
+    url: https://isic-archive.s3.amazonaws.com/challenges/2018/ISIC2018_Task1-2_Training_Input.zip
+    expected_bytes: 11165358566
   mask_manifest: splits/stage16g/mask_qualified_train.csv
   mask_inventory: splits/stage16g/mask_inventory.json
+  segmentation_train_manifest: splits/stage16g/segmentation_train.csv
+  segmentation_qualification_manifest: splits/stage16g/segmentation_qualification.csv
 
 targeting:
   # Final targets are intersected with mask-qualified train lesions.
@@ -52,6 +57,31 @@ generators:
     requires_segmentation_mask: true
     maximum_training_steps_pilot: 1000
     downstream_promotion_allowed: true
+  isic2019_class_conditioned_inpainting:
+    enabled: true
+    role: preferred_isic2019_specific_candidate
+    reference: https://arxiv.org/abs/2605.03221
+    source_conditioned: true
+    requires_segmentation_mask: true
+    source_sampling: aid_weighted
+    post_selection: per_class_ood
+    retention_fractions: [0.20, 0.40, 0.60]
+    downstream_promotion_allowed: true
+
+segmentation_bootstrap:
+  architecture: deeplabv3_resnet50
+  initialization: COCO_WITH_VOC_LABELS_V1
+  image_size: 384
+  batch_size: 8
+  epochs: 30
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  monitor: val/dice
+  minimum_qualification_dice: 0.85
+  minimum_qualification_iou: 0.75
+  train_source: isic2018_masks_excluding_all_stage16_ids
+  qualification_source: stage16_train_overlap_only
+  downstream_validation_or_test_allowed: false
 
 qualification:
   gpu:

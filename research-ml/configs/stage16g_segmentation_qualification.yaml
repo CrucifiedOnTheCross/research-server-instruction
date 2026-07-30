@@ -1,0 +1,24 @@
+experiment:
+  name: stage16g_isic2018_deeplabv3_segmentation_384
+  seed: 1607
+data:
+  root: /srv/research/projects/default/isic2019
+  train_manifest: splits/stage16g/segmentation_train.csv
+  validation_manifest: splits/stage16g/segmentation_qualification.csv
+  image_size: 384
+model:
+  architecture: deeplabv3_resnet50
+  pretrained_weights: COCO_WITH_VOC_LABELS_V1
+training:
+  epochs: 30
+  batch_size: 8
+  num_workers: 12
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  early_stopping_patience: 8
+  precision: bf16
+  monitor: val/dice
+evaluation:
+  threshold: 0.5
+  run_test: false
+  locked_test_evaluated: false

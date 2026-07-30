@@ -16,6 +16,7 @@ from tools.prepare_stage16g_masks import (
     extract_selected_masks,
     image_id_from_mask_name,
 )
+from tools.prepare_stage16g_segmentation_data import split_segmentation_rows
 
 
 def write_split(path: Path, rows: list[dict[str, str]]) -> None:
@@ -106,6 +107,59 @@ class Stage16GProtocolTests(unittest.TestCase):
             config["targeting"]["minimum_unique_lesions_per_class"] = 2
             _, errors = validate(config, Path.cwd(), check_hardware=False)
             self.assertTrue(any("mel:" in error for error in errors))
+
+    def test_segmentation_bootstrap_excludes_stage16_eval_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image_paths = {}
+            mask_rows = []
+            for identifier in (
+                "ISIC_0000001",
+                "ISIC_0000002",
+                "ISIC_0000003",
+                "ISIC_0000004",
+            ):
+                image = root / f"{identifier}.jpg"
+                image.write_bytes(identifier.encode())
+                image_paths[identifier] = image
+                mask_rows.append(
+                    {
+                        "image_id": identifier,
+                        "mask_path": f"{identifier}.png",
+                        "mask_sha256": "a" * 64,
+                    }
+                )
+            splits = {
+                "train": [
+                    {
+                        "image_id": "ISIC_0000001",
+                        "sha256": "train",
+                    }
+                ],
+                "val": [
+                    {
+                        "image_id": "ISIC_0000002",
+                        "sha256": "val",
+                    }
+                ],
+                "locked_test": [
+                    {
+                        "image_id": "ISIC_0000003",
+                        "sha256": "test",
+                    }
+                ],
+            }
+            train, qualification, report = split_segmentation_rows(
+                mask_rows, splits, image_paths, root
+            )
+            self.assertEqual(
+                [row["image_id"] for row in qualification], ["ISIC_0000001"]
+            )
+            self.assertEqual([row["image_id"] for row in train], ["ISIC_0000004"])
+            self.assertEqual(
+                report["excluded_stage16_validation_or_test_ids"], 2
+            )
+            self.assertFalse(report["locked_test_evaluated"])
 
 
 if __name__ == "__main__":
