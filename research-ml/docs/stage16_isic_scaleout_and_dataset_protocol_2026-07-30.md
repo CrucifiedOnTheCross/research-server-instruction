@@ -674,6 +674,66 @@ Natural CE: full-frame aspect-preserving pad и simplified dark-FOV
 crop + pad. Полный protocol, preregistered guardrails и литература:
 `docs/stage16p_isic2019_preprocessing_protocol_2026-07-30.md`.
 
+### Stage 16B confirmation: multi-seed результат
+
+Natural CE и Balanced Softmax завершены на seeds 42, 43 и 44. Для всех
+шести runs подтверждены:
+
+- одинаковый `isic2019_connected_group_v2` validation split из 3799
+  изображений и 3210 lesion groups;
+- ConvNeXt-Small 384, pretrained initialization, batch 48 и monitor
+  `val/auprc_ovr_macro`;
+- полный набор model, sampling, environment и prediction artifacts;
+- расхождение повторно вычисленных и сохранённых метрик не более
+  `4.99e-08`;
+- `test_evaluated=false`.
+
+| Arm | Macro AUPRC | Macro AUROC | Macro F1 | Bal. acc. | MCC | ECE | Worst recall |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Natural CE | 0.76454 +/- 0.00709 | 0.94981 +/- 0.00993 | 0.70912 +/- 0.00968 | 0.68701 +/- 0.00924 | 0.73982 +/- 0.00709 | 0.04880 +/- 0.00916 | 0.35385 +/- 0.01538 |
+| Balanced Softmax | 0.76559 +/- 0.00174 | 0.95835 +/- 0.00219 | 0.69303 +/- 0.00585 | 0.72099 +/- 0.01018 | 0.73276 +/- 0.00424 | 0.13590 +/- 0.00789 | 0.40256 +/- 0.02912 |
+
+Paired Balanced Softmax minus Natural CE:
+
+| Metric | Mean delta | Positive seeds | 95% hierarchical bootstrap CI |
+|---|---:|---:|---:|
+| Macro AUPRC | +0.00106 | 2/3 | [-0.01176; +0.01395] |
+| Macro F1 | -0.01609 | 0/3 | [-0.03924; +0.00741] |
+| MCC | -0.00706 | 0/3 | [-0.01856; +0.00479] |
+| Balanced accuracy | +0.03398 | 3/3 | [+0.01529; +0.05477] |
+| ECE | +0.08710 | 3/3 | [+0.07525; +0.09772] |
+| Worst-class recall | +0.04872 | 3/3 | [-0.00567; +0.11487] |
+| Melanoma AUPRC | -0.01190 | 0/3 | [-0.02354; +0.00006] |
+| SCC AUPRC | -0.00645 | 1/3 | [-0.05390; +0.03976] |
+
+Bootstrap выполнен 5000 раз по иерархии seed -> lesion group. Он не
+подтверждает улучшение primary macro AUPRC. Одновременно:
+
+- macro AUROC увеличивается на 0.00854 на 3/3 seeds, но этот secondary
+  ranking effect не переносится на macro AUPRC;
+- melanoma AUPRC снижается на 3/3 seeds;
+- SCC recall растёт на 0.08865 на 3/3 seeds, но SCC precision снижается на
+  0.04875 и SCC AUPRC не улучшается устойчиво;
+- melanoma sensitivity при specificity 0.90 уменьшается в среднем примерно
+  на 0.013, при specificity 0.95 -- примерно на 0.012;
+- SCC sensitivity при specificity 0.90 и 0.95 также не получает устойчивого
+  преимущества;
+- среднее время run возрастает с 2222 до 3498 секунд, примерно на 57%.
+
+Научная интерпретация: Balanced Softmax меняет operating point и повышает
+macro recall/balanced accuracy, но не улучшает общий ranking редких классов.
+Высокий ECE и снижение melanoma AUPRC показывают, что этот выигрыш нельзя
+трактовать как общее повышение диагностической полезности. Для следующих
+этапов основным real-only baseline остаётся Natural CE. Balanced Softmax
+может использоваться только как отдельный threshold-oriented comparator,
+но не как основной imbalance method.
+
+Канонические structured результаты анализа:
+`outputs/reports/stage16b_analysis/analysis_summary.json`,
+`method_summary.csv`, `paired_seed_comparisons.csv`,
+`hierarchical_lesion_bootstrap.csv`, `per_class_discrimination.csv` и
+`fixed_specificity_diagnostics.csv`. Locked test не открывался.
+
 ## Использованные источники
 
 1. ISIC Challenge Datasets. Official releases, metadata, duplicate lists and
