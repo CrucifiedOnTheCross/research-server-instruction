@@ -72,6 +72,14 @@ gate, не использующий downstream outcomes:
 - `border_foreground_fraction <= 0.10`;
 - предыдущие confidence/component/dominant-component gates сохраняются.
 
+Фактический результат дополнительного gate:
+
+- 893 pseudo-masks из 1089 допущены к generator smoke;
+- все 893 относятся к уникальным `group_id`;
+- `ak=144`, `bcc=255`, `df=56`, `mel=270`, `scc=106`,
+  `vasc=62`;
+- validation и locked test не использовались.
+
 ## Исследовательский вопрос
 
 Можно ли получить синтетические дерматоскопические изображения, которые:

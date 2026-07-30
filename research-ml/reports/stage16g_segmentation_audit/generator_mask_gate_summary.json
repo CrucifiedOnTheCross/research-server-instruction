@@ -1,0 +1,18 @@
+{
+  "locked_test_evaluated": false,
+  "qualification_area_lower": 0.03053367614746087,
+  "qualification_area_upper": 0.9085011741000472,
+  "maximum_border_fraction": 0.1,
+  "input_candidates": 1089,
+  "segmentation_gate_passed": 972,
+  "generator_mask_eligible": 893,
+  "unique_groups": 893,
+  "class_counts": {
+    "ak": 144,
+    "bcc": 255,
+    "df": 56,
+    "mel": 270,
+    "scc": 106,
+    "vasc": 62
+  }
+}
