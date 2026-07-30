@@ -17,7 +17,7 @@ docker run -d \
   -v "$PROJECT_ROOT:$PROJECT_ROOT" \
   -w "$WORKDIR" \
   "$IMAGE" \
-  bash -lc "source .venv/bin/activate && python -m unittest tests.test_stage16g_protocol && scripts/prepare_stage16g_masks_and_gate.sh"
+  bash -lc "source .venv/bin/activate && python -m unittest discover -s tests -p 'test_stage16g_protocol.py' && scripts/prepare_stage16g_masks_and_gate.sh"
 
 echo "Container: $NAME"
 echo "Gate report: $WORKDIR/outputs/reports/stage16g_readiness.json"
