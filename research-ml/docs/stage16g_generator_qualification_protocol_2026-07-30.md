@@ -401,3 +401,55 @@ ordinary text-to-image checkpoints are compatible with inpainting but are less
 effective than checkpoints trained for the task. LoRA is deferred because the
 official Diffusers examples are starting points requiring task-specific data
 adaptation; introducing it in P0 would confound conditioning with fine-tuning.
+
+## Stage 16G-P0 factual result
+
+Date: 2026-07-30. Both arms completed 48/48 images with zero hash failures.
+All 24 anchors were unique train lesion groups; evaluation overlap by ID and
+exact image hash was zero. The locked test remained closed.
+
+| Arm | Label agreement | Source cosine | Mask IoU | Outside-mask MAE | Gate |
+|---|---:|---:|---:|---:|---|
+| historical SD1.5 img2img, strength 0.10 | 0.625 | 0.668 | 0.827 | 0.0208 | fail |
+| generic SD1.5 mask inpainting, strength 0.80 | 0.333 | 0.328 | 0.637 | 0.0128 | fail |
+
+The generic inpainting control failed the two central preregistered criteria:
+independent real-only ConvNeXt-Small class agreement was below 0.80 and
+segmentation IoU was below 0.70. Melanoma agreement was 0/8; five of eight
+generated melanoma candidates were predicted as `nv`. Visual review confirmed
+the metric failure: the generic checkpoint frequently generated eyes, noses,
+lips and other non-dermoscopic structures inside the lesion mask.
+
+The historical img2img control preserved lesion shape better, but also failed
+class agreement. Its contact sheet shows near-reconstruction with only small
+texture and colour changes. The classifier-feature cosine did not reliably
+identify those visually obvious near-copies, so it must not be the only
+duplicate diagnostic in the next qualification. Pixel/perceptual source
+similarity and paired visual audit remain required.
+
+### Decision
+
+`p1_allowed=false`; no downstream classifier will be trained on either P0
+pool. This rules out generic SD1.5 prompting as the main Stage 16 generator and
+confirms that selection or OOD filtering cannot repair a generator that changes
+diagnosis or produces out-of-domain anatomy.
+
+The next permitted work is a train-only generator-development stage, not a
+utility claim:
+
+1. adapt a dermoscopy-domain generator using only Stage 16 train images;
+2. keep mask conditioning and class prompts as separate, attributable factors;
+3. add image-only and image-mask discriminator diagnostics before downstream
+   training;
+4. compare against the same 24 anchors and equal candidate budget;
+5. require the full P0 quality gates before any Stage 16C classifier run.
+
+Canonical artifacts:
+
+- `outputs/stage16g_generator_smoke/qualification_per_image.csv`;
+- `outputs/stage16g_generator_smoke/qualification_by_arm.csv`;
+- `outputs/stage16g_generator_smoke/qualification_summary.json`;
+- `outputs/stage16g_generator_smoke/contact_sheet_*.jpg`.
+
+The paired visual audit is published as the persistent FiftyOne dataset
+`isic2019-stage16g-generator-smoke` at `http://10.200.1.180:5151`.

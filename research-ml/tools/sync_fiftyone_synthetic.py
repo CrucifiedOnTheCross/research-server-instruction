@@ -20,6 +20,12 @@ FLOAT_FIELDS = (
     "stage13_quality_score",
     "frequency_max_abs_z",
     "frequency_source_distance",
+    "true_label_probability",
+    "source_cosine_similarity",
+    "regenerated_mask_iou",
+    "regenerated_mask_dice",
+    "outside_mask_mae",
+    "inside_mask_mae",
 )
 INT_FIELDS = (
     "seed",
@@ -37,6 +43,8 @@ BOOL_FIELDS = (
     "stage10_selected",
     "stage13_candidate_eligible",
     "stage13_selected",
+    "output_hash_valid",
+    "label_agreement",
 )
 TEXT_FIELDS = (
     "image_id",
@@ -50,6 +58,10 @@ TEXT_FIELDS = (
     "stage10_stratum",
     "stage13_tier",
     "stage15a_variant",
+    "generator_arm",
+    "generator_kind",
+    "model_revision",
+    "predicted_label",
 )
 
 
