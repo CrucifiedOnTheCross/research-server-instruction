@@ -23,6 +23,7 @@ from tools.prepare_stage16g_masks import (
     image_id_from_mask_name,
 )
 from tools.prepare_stage16g_segmentation_data import split_segmentation_rows
+from tools.select_stage16g_generator_masks import select_masks
 
 
 def write_split(path: Path, rows: list[dict[str, str]]) -> None:
@@ -56,6 +57,44 @@ class Stage16GProtocolTests(unittest.TestCase):
         selected = deterministic_group_sample(rows, ["mel"], maximum=10)
         self.assertEqual(len(selected), 2)
         self.assertEqual(len({row["group_id"] for row in selected}), 2)
+
+    def test_generator_mask_gate_uses_qualification_area_range(self) -> None:
+        qualification = pd.DataFrame({"gt_area_fraction": [0.1, 0.2, 0.8, 0.9]})
+        pseudo = pd.DataFrame(
+            [
+                {
+                    "image_id": "good",
+                    "group_id": "g1",
+                    "pseudo_mask_passed": 1,
+                    "area_fraction": 0.5,
+                    "border_foreground_fraction": 0.0,
+                },
+                {
+                    "image_id": "border",
+                    "group_id": "g2",
+                    "pseudo_mask_passed": 1,
+                    "area_fraction": 0.5,
+                    "border_foreground_fraction": 0.2,
+                },
+                {
+                    "image_id": "large",
+                    "group_id": "g3",
+                    "pseudo_mask_passed": 1,
+                    "area_fraction": 0.99,
+                    "border_foreground_fraction": 0.0,
+                },
+            ]
+        )
+        selected, summary = select_masks(
+            pseudo,
+            qualification,
+            lower_quantile=0.0,
+            upper_quantile=1.0,
+            maximum_border_fraction=0.1,
+        )
+        self.assertEqual(selected["image_id"].tolist(), ["good"])
+        self.assertEqual(summary["generator_mask_eligible"], 1)
+        self.assertFalse(summary["locked_test_evaluated"])
     def test_mask_name_parser_is_case_insensitive(self) -> None:
         self.assertEqual(
             image_id_from_mask_name("nested/isic_0012345_segmentation.PNG"),

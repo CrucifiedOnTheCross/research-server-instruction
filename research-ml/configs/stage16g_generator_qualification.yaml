@@ -86,6 +86,8 @@ segmentation_bootstrap:
   pseudo_mask_minimum_confidence: 0.80
   pseudo_mask_minimum_largest_component_fraction: 0.85
   pseudo_mask_maximum_components: 3
+  pseudo_mask_area_reference_quantiles: [0.01, 0.99]
+  pseudo_mask_maximum_border_fraction: 0.10
 
 qualification:
   gpu:

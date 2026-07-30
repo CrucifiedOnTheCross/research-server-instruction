@@ -64,6 +64,14 @@ Per-image пересчёт checkpoint подтвердил aggregate резул�
 `isic2019-stage16g-mask-audit`. Сохранённые views разделяют прошедшие,
 отклонённые, фрагментированные, border-touching и low-confidence маски.
 
+После visual audit до generator smoke зафиксирован дополнительный morphology
+gate, не использующий downstream outcomes:
+
+- площадь pseudo-mask должна находиться между 1-м и 99-м процентилями
+  площади официальных qualification masks;
+- `border_foreground_fraction <= 0.10`;
+- предыдущие confidence/component/dominant-component gates сохраняются.
+
 ## Исследовательский вопрос
 
 Можно ли получить синтетические дерматоскопические изображения, которые:
