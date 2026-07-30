@@ -60,6 +60,10 @@ Per-image пересчёт checkpoint подтвердил aggregate резул�
 визуальным аудитом pseudo-masks и generator smoke; downstream classifier
 остаётся заблокирован.
 
+Визуальный аудит публикуется как persistent FiftyOne dataset
+`isic2019-stage16g-mask-audit`. Сохранённые views разделяют прошедшие,
+отклонённые, фрагментированные, border-touching и low-confidence маски.
+
 ## Исследовательский вопрос
 
 Можно ли получить синтетические дерматоскопические изображения, которые:
