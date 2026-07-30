@@ -1,0 +1,58 @@
+protocol: stage16g_generator_smoke_v1
+locked_test_policy: closed
+test_evaluated: false
+
+data:
+  root: /srv/research/projects/default/isic2019
+  eligible_manifest: /srv/research/projects/default/research-ml/outputs/reports/stage16g_segmentation_audit/generator_mask_eligible.csv
+  validation_split: splits/val.csv
+  locked_test_split: splits/locked_test.csv
+  output_root: /srv/research/projects/default/research-ml/outputs/stage16g_generator_smoke
+
+selection:
+  target_classes: [mel, scc, bcc, ak, df, vasc]
+  anchors_per_class: 4
+  candidates_per_anchor: 2
+  seed: 1607
+  strategy: deterministic_morphology_quantiles
+  morphology_field: area_fraction
+  require_unique_groups: true
+
+common:
+  image_size: 512
+  inference_steps: 30
+  guidance_scale: 6.0
+  negative_prompt: "cartoon, illustration, text, watermark, frame, black border, multiple lesions, duplicated lesion, blurry, low quality, non-dermoscopic image"
+  prompt_templates:
+    mel: "clinical dermoscopic photograph of melanoma, one lesion, realistic diagnostic structures and skin texture"
+    scc: "clinical dermoscopic photograph of squamous cell carcinoma, one lesion, realistic diagnostic structures and skin texture"
+    bcc: "clinical dermoscopic photograph of basal cell carcinoma, one lesion, realistic diagnostic structures and skin texture"
+    ak: "clinical dermoscopic photograph of actinic keratosis, one lesion, realistic diagnostic structures and skin texture"
+    df: "clinical dermoscopic photograph of dermatofibroma, one lesion, realistic diagnostic structures and skin texture"
+    vasc: "clinical dermoscopic photograph of a vascular skin lesion, one lesion, realistic diagnostic structures and skin texture"
+
+arms:
+  historical_sd15_img2img:
+    kind: img2img
+    role: historical_near_reconstruction_negative_control
+    model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
+    strength: 0.10
+  generic_sd15_mask_inpaint:
+    kind: inpaint
+    role: generic_mask_conditioning_feasibility_control
+    model_id: stable-diffusion-v1-5/stable-diffusion-inpainting
+    strength: 0.80
+    mask_dilation_pixels: 5
+    mask_blur_radius: 2.0
+
+promotion_gates:
+  expected_images_per_arm: 48
+  require_source_and_mask_sha256: true
+  require_model_revision: true
+  require_deterministic_seed: true
+  maximum_failed_images: 0
+  maximum_outside_mask_mae: 0.03
+  maximum_source_cosine_similarity: 0.995
+  minimum_independent_label_agreement: 0.80
+  minimum_regenerated_mask_iou: 0.70
+

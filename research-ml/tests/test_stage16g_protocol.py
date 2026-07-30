@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+from PIL import Image
 
 from tools.check_stage16g_readiness import validate
 from tools.stage16g_mask_metrics import (
@@ -24,6 +25,8 @@ from tools.prepare_stage16g_masks import (
 )
 from tools.prepare_stage16g_segmentation_data import split_segmentation_rows
 from tools.select_stage16g_generator_masks import select_masks
+from tools.prepare_stage16g_generator_smoke import select_morphology_anchors
+from tools.generate_stage16g_generator_smoke import prepare_mask
 
 
 def write_split(path: Path, rows: list[dict[str, str]]) -> None:
@@ -33,6 +36,51 @@ def write_split(path: Path, rows: list[dict[str, str]]) -> None:
 
 
 class Stage16GProtocolTests(unittest.TestCase):
+    def test_generator_smoke_selection_is_balanced_and_group_unique(self) -> None:
+        rows = pd.DataFrame(
+            [
+                {
+                    "image_id": f"{label}_{index}",
+                    "group_id": f"{label}_g{index}",
+                    "label": label,
+                    "area_fraction": index / 10,
+                }
+                for label in ("mel", "scc")
+                for index in range(1, 7)
+            ]
+        )
+        selected = select_morphology_anchors(
+            rows, ["mel", "scc"], anchors_per_class=4, morphology_field="area_fraction"
+        )
+        self.assertEqual(selected["label"].value_counts().to_dict(), {"mel": 4, "scc": 4})
+        self.assertEqual(selected["group_id"].nunique(), 8)
+
+    def test_generator_smoke_selection_fails_for_small_class(self) -> None:
+        rows = pd.DataFrame(
+            [
+                {
+                    "image_id": "mel_1",
+                    "group_id": "mel_g1",
+                    "label": "mel",
+                    "area_fraction": 0.2,
+                }
+            ]
+        )
+        with self.assertRaisesRegex(RuntimeError, "only 1"):
+            select_morphology_anchors(
+                rows, ["mel"], anchors_per_class=2, morphology_field="area_fraction"
+            )
+
+    def test_inpainting_mask_is_binary_before_feathering(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mask.png"
+            mask = np.zeros((8, 8), dtype=np.uint8)
+            mask[3:5, 3:5] = 255
+            Image.fromarray(mask).save(path)
+            prepared = np.asarray(prepare_mask(path, 8, dilation=1, blur_radius=0))
+            self.assertEqual(set(np.unique(prepared)), {0, 255})
+            self.assertGreater(int((prepared > 0).sum()), 4)
+
     def test_mask_metrics_reward_exact_overlap(self) -> None:
         truth = np.zeros((8, 8), dtype=bool)
         truth[2:6, 2:6] = True

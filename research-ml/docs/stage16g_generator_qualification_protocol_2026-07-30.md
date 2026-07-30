@@ -356,3 +356,48 @@ downstream utility.
 - Автоматические label classifiers могут разделять общие shortcuts.
 - Validation остаётся пригодной для model selection, но не для выбора
   feature-space anchors или генеративных порогов.
+# Stage 16G-P0: generator feasibility smoke
+
+## Preregistered question
+
+Does mask-conditioned inpainting produce a materially different, reproducible
+train-only candidate pool while preserving the non-lesion background better
+than the historical low-strength SD1.5 img2img control?
+
+This is a generator-qualification stage. It does not train a downstream
+classifier and it does not open validation or locked-test images.
+
+## Design
+
+- 24 anchors: 4 unique lesion groups from each of `mel`, `scc`, `bcc`, `ak`,
+  `df`, and `vasc`.
+- Anchors are selected deterministically across lesion-area quantiles from the
+  893 masks that passed the Stage 16G segmentation and morphology gates.
+- Two candidates per anchor and arm, giving 48 images per arm.
+- `historical_sd15_img2img`: SD1.5 img2img at strength 0.10. This is a
+  preregistered near-reconstruction negative control and cannot be promoted.
+- `generic_sd15_mask_inpaint`: the dedicated SD1.5 inpainting checkpoint at
+  strength 0.80, using the train-only predicted lesion mask.
+- Every candidate records source, mask and output hashes, generator revision,
+  prompt, seed and full resolved configuration.
+
+The generic inpainting arm is only a feasibility control. It is not treated as
+the final medical generator because it has not been adapted to dermoscopy.
+Class-conditioned/domain-adapted LoRA or the reproducible part of DiDGen is
+Stage 16G-P1 and is allowed only after P0 passes technical gates.
+
+## Promotion gates
+
+P0 must have no missing images, no evaluation overlap, deterministic seeds and
+an immutable model revision. Subsequent qualification must measure non-lesion
+background error, regenerated-mask IoU, independent class agreement,
+source-near-duplicate similarity and artifact rejection. No downstream
+classification run starts before those structured audits are complete.
+
+## Implementation note
+
+The dedicated inpainting checkpoint is intentional: Diffusers documents that
+ordinary text-to-image checkpoints are compatible with inpainting but are less
+effective than checkpoints trained for the task. LoRA is deferred because the
+official Diffusers examples are starting points requiring task-specific data
+adaptation; introducing it in P0 would confound conditioning with fine-tuning.
