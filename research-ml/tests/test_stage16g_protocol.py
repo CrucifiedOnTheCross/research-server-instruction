@@ -26,6 +26,7 @@ from tools.prepare_stage16g_masks import (
 from tools.prepare_stage16g_segmentation_data import split_segmentation_rows
 from tools.select_stage16g_generator_masks import select_masks
 from tools.prepare_stage16g_generator_smoke import select_morphology_anchors
+from tools.prepare_stage16g_p1_domain_data import prepare_domain_rows
 from tools.generate_stage16g_generator_smoke import prepare_mask
 from tools.stage16g_generator_metrics import summarize_arm
 
@@ -106,6 +107,26 @@ class Stage16GProtocolTests(unittest.TestCase):
         summary = summarize_arm(frame, gates)
         self.assertEqual(summary["near_duplicate_fraction"], 0.5)
         self.assertFalse(summary["technical_gate_passed"])
+
+    def test_p1_domain_data_excludes_complete_anchor_groups(self) -> None:
+        train = pd.DataFrame(
+            [
+                {"image_id": "anchor", "group_id": "g1", "label": "mel", "is_synthetic": 0, "split": "train"},
+                {"image_id": "same_group", "group_id": "g1", "label": "mel", "is_synthetic": 0, "split": "train"},
+                {"image_id": "safe", "group_id": "g2", "label": "mel", "is_synthetic": 0, "split": "train"},
+            ]
+        )
+        anchors = pd.DataFrame([{"image_id": "anchor", "group_id": "g1"}])
+        selected, summary = prepare_domain_rows(
+            train,
+            anchors,
+            ["mel"],
+            {"mel": "dermoscopic melanoma"},
+            maximum_groups_per_class=10,
+            seed=42,
+        )
+        self.assertEqual(selected["image_id"].tolist(), ["safe"])
+        self.assertEqual(summary["anchor_group_overlap"], 0)
 
     def test_mask_metrics_reward_exact_overlap(self) -> None:
         truth = np.zeros((8, 8), dtype=bool)

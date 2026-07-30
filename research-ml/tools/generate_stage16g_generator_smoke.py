@@ -29,6 +29,15 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def lora_sha256(path_value: str | None) -> str | None:
+    if not path_value:
+        return None
+    path = Path(path_value) / "pytorch_lora_weights.safetensors"
+    if not path.is_file():
+        raise FileNotFoundError(f"LoRA weights not found: {path}")
+    return sha256(path)
+
+
 def fit_image(path: Path, size: int, mode: str) -> Image.Image:
     image = Image.open(path).convert(mode)
     return ImageOps.fit(
@@ -64,6 +73,8 @@ def load_pipeline(arm: dict[str, Any]) -> tuple[Any, str]:
         safety_checker=None,
         requires_safety_checker=False,
     ).to("cuda")
+    if arm.get("lora_path"):
+        pipe.load_lora_weights(str(arm["lora_path"]))
     pipe.set_progress_bar_config(disable=True)
     return pipe, revision
 
@@ -89,7 +100,8 @@ def main() -> None:
     arm = config["arms"][args.arm]
     data_root = Path(config["data"]["root"])
     output_root = Path(config["data"]["output_root"])
-    anchors = pd.read_csv(output_root / "anchors.csv")
+    anchors_path = config["data"].get("anchors_manifest", output_root / "anchors.csv")
+    anchors = pd.read_csv(anchors_path)
     arm_root = output_root / args.arm
     image_root = arm_root / "images"
     image_root.mkdir(parents=True, exist_ok=True)
@@ -97,6 +109,7 @@ def main() -> None:
     existing = pd.read_csv(manifest_path).to_dict("records") if manifest_path.exists() else []
     existing_ids = {str(row["image_id"]) for row in existing}
     pipe, revision = load_pipeline(arm)
+    adapter_sha256 = lora_sha256(arm.get("lora_path"))
 
     environment = {
         "protocol": config["protocol"],
@@ -108,6 +121,8 @@ def main() -> None:
         "gpu": torch.cuda.get_device_name(0),
         "model_id": arm["model_id"],
         "model_revision": revision,
+        "lora_path": arm.get("lora_path"),
+        "lora_sha256": adapter_sha256,
         "config_sha256": sha256(config_path),
     }
     (arm_root / "environment.json").write_text(
@@ -171,6 +186,8 @@ def main() -> None:
                 "generator_kind": arm["kind"],
                 "model_id": arm["model_id"],
                 "model_revision": revision,
+                "lora_path": arm.get("lora_path", ""),
+                "lora_sha256": adapter_sha256 or "",
                 "seed": seed,
                 "strength": arm["strength"],
                 "guidance_scale": common["guidance_scale"],

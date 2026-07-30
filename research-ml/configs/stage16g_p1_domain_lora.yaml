@@ -1,0 +1,56 @@
+protocol: stage16g_p1_domain_lora_v1
+locked_test_policy: closed
+test_evaluated: false
+
+data:
+  root: /srv/research/projects/default/isic2019
+  train_split: splits/train.csv
+  excluded_anchor_manifest: /srv/research/projects/default/research-ml/outputs/stage16g_generator_smoke/anchors.csv
+  training_manifest: /srv/research/projects/default/research-ml/outputs/stage16g_p1_domain_lora/train_manifest.csv
+  output_root: /srv/research/projects/default/research-ml/outputs/stage16g_p1_domain_lora
+  target_classes: [ak, bcc, bkl, df, mel, nv, scc, vasc]
+  one_image_per_group: true
+  maximum_groups_per_class: 2500
+
+model:
+  base_model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
+  rank: 16
+  lora_alpha: 16
+  target_modules: [to_k, to_q, to_v, to_out.0]
+  train_text_encoder: false
+
+training:
+  resolution: 512
+  seed: 1611
+  max_train_steps: 5000
+  train_batch_size: 2
+  gradient_accumulation_steps: 2
+  effective_batch_size: 4
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  max_grad_norm: 1.0
+  lr_scheduler: cosine
+  lr_warmup_steps: 250
+  snr_gamma: 5.0
+  mixed_precision: bf16
+  gradient_checkpointing: true
+  checkpointing_steps: 500
+  metrics_every_steps: 25
+  class_sampling: uniform
+  horizontal_flip: true
+
+prompts:
+  ak: "clinical dermoscopic photograph of actinic keratosis, one skin lesion"
+  bcc: "clinical dermoscopic photograph of basal cell carcinoma, one skin lesion"
+  bkl: "clinical dermoscopic photograph of benign keratosis, one skin lesion"
+  df: "clinical dermoscopic photograph of dermatofibroma, one skin lesion"
+  mel: "clinical dermoscopic photograph of melanoma, one skin lesion"
+  nv: "clinical dermoscopic photograph of melanocytic nevus, one skin lesion"
+  scc: "clinical dermoscopic photograph of squamous cell carcinoma, one skin lesion"
+  vasc: "clinical dermoscopic photograph of vascular skin lesion, one skin lesion"
+
+promotion:
+  require_anchor_group_exclusion: true
+  require_zero_evaluation_overlap: true
+  maximum_training_steps: 5000
+  require_finite_final_loss: true

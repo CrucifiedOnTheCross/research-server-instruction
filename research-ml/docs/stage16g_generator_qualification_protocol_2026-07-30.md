@@ -453,3 +453,60 @@ Canonical artifacts:
 
 The paired visual audit is published as the persistent FiftyOne dataset
 `isic2019-stage16g-generator-smoke` at `http://10.200.1.180:5151`.
+
+## Stage 16G-P1 preregistration: train-only domain LoRA
+
+P0 showed that mask conditioning alone preserves the background but does not
+provide a dermoscopy prior. P1 therefore tests domain adaptation as a separate
+factor. The implementation follows the current Diffusers text-to-image LoRA
+training structure: frozen VAE/text encoder/base UNet, trainable attention LoRA,
+class prompts, BF16, gradient checkpointing and Min-SNR weighting with
+`gamma=5`.
+
+The official DiDGen repository was reviewed at revision
+`1ca3b085bbb42462e5a3cca8d0b4dfefb494b9c8`. Its released script performs
+20,000-step SD2.1 fine-tuning with region-aware cross-attention loss, but ships
+no checkpoint, uses an old pinned software stack and contains author-local
+dataset paths. P1 does not claim to reproduce DiDGen. It tests the attributable
+domain-adaptation component first on the supported project stack.
+
+### Leakage and sampling controls
+
+- only real Stage 16 train images are allowed;
+- all 24 P0 anchor IDs and their complete lesion groups are excluded;
+- one image per lesion group is retained;
+- classes are sampled uniformly during optimization;
+- validation and locked test are not used for loss, prompts or checkpoint
+  selection;
+- the LoRA base-model commit, data manifest and all hyperparameters are stored.
+
+### P1 comparisons
+
+The same 24 held-out train anchors and two candidates per anchor are reused:
+
+1. `domain_lora_img2img`, strength 0.80: domain adaptation without a mask;
+2. `domain_lora_mask_inpaint`, strength 0.80: domain adaptation plus mask
+   conditioning.
+
+They are interpreted together with P0's generic inpainting and low-strength
+img2img controls. Downstream classification remains blocked until the adapted
+inpainting arm passes the same class-agreement, mask-IoU, background,
+near-duplicate and visual-artifact gates.
+
+The full P1 budget is 5,000 optimization steps with effective batch size 4,
+approximately 20,000 class-balanced image presentations. Checkpoints include
+LoRA, optimizer, scheduler and exact global step every 500 steps. The container
+uses an on-failure restart policy and resumes from the latest complete
+checkpoint. A separate two-step output directory is required for the initial
+VRAM/compatibility smoke and is never included in scientific summaries.
+
+### Literature used for implementation
+
+- Hugging Face Diffusers, official text-to-image LoRA training script and
+  Min-SNR recommendation (`snr_gamma=5`);
+- Shentu et al., DiDGen, MICCAI 2025 and Medical Image Analysis 2026;
+- Jiang et al., *Synthetic Data Generation for Long-Tail Medical Image
+  Classification*, arXiv:2605.03221;
+- Shabu et al., *A Generative AI Approach for Reducing Skin Tone Bias in Skin
+  Cancer Classification*, arXiv:2602.14356. This supports dermoscopy-domain
+  LoRA feasibility but does not justify skin-tone conditioning in our main arm.

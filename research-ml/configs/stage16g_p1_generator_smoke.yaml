@@ -1,0 +1,54 @@
+protocol: stage16g_p1_generator_smoke_v1
+locked_test_policy: closed
+test_evaluated: false
+
+data:
+  root: /srv/research/projects/default/isic2019
+  anchors_manifest: /srv/research/projects/default/research-ml/outputs/stage16g_generator_smoke/anchors.csv
+  output_root: /srv/research/projects/default/research-ml/outputs/stage16g_generator_p1_smoke
+
+selection:
+  target_classes: [mel, scc, bcc, ak, df, vasc]
+  candidates_per_anchor: 2
+  seed: 1617
+
+common:
+  image_size: 512
+  inference_steps: 30
+  guidance_scale: 6.0
+  negative_prompt: "cartoon, illustration, portrait, face, eye, nose, lips, text, watermark, frame, multiple lesions, duplicated lesion, blurry, low quality, non-dermoscopic image"
+  prompt_templates:
+    mel: "clinical dermoscopic photograph of melanoma, one skin lesion"
+    scc: "clinical dermoscopic photograph of squamous cell carcinoma, one skin lesion"
+    bcc: "clinical dermoscopic photograph of basal cell carcinoma, one skin lesion"
+    ak: "clinical dermoscopic photograph of actinic keratosis, one skin lesion"
+    df: "clinical dermoscopic photograph of dermatofibroma, one skin lesion"
+    vasc: "clinical dermoscopic photograph of vascular skin lesion, one skin lesion"
+
+arms:
+  domain_lora_img2img:
+    kind: img2img
+    role: domain_adaptation_without_mask
+    model_id: stable-diffusion-v1-5/stable-diffusion-v1-5
+    lora_path: /srv/research/projects/default/research-ml/outputs/stage16g_p1_domain_lora/lora
+    strength: 0.80
+  domain_lora_mask_inpaint:
+    kind: inpaint
+    role: domain_adaptation_plus_mask_conditioning
+    model_id: stable-diffusion-v1-5/stable-diffusion-inpainting
+    lora_path: /srv/research/projects/default/research-ml/outputs/stage16g_p1_domain_lora/lora
+    strength: 0.80
+    mask_dilation_pixels: 5
+    mask_blur_radius: 2.0
+
+promotion_gates:
+  expected_images_per_arm: 48
+  require_source_and_mask_sha256: true
+  require_model_revision: true
+  require_deterministic_seed: true
+  maximum_failed_images: 0
+  maximum_outside_mask_mae: 0.03
+  maximum_source_cosine_similarity: 0.995
+  minimum_independent_label_agreement: 0.80
+  minimum_regenerated_mask_iou: 0.70
+
