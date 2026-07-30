@@ -1,0 +1,11 @@
+{
+  "protocol": "stage16g_segmentation_audit_v1",
+  "locked_test_evaluated": false,
+  "qualification_images": 303,
+  "qualification_mean_dice": 0.9230962720876281,
+  "qualification_mean_iou": 0.8638130632424993,
+  "qualification_worst_area_quartile_dice": 0.9157367144488888,
+  "pseudo_mask_candidates": 1089,
+  "pseudo_mask_passed": 972,
+  "checkpoint": "outputs/stage16g_segmentation/stage16g_isic2018_deeplabv3_segmentation_384/best.pt"
+}

@@ -36,6 +36,30 @@ audit, component/confidence gates и визуальная проверка.
 отсутствия project root в `sys.path` при прямом запуске `tools/*.py`.
 Импорт исправлен явно; научные данные и checkpoint не изменялись.
 
+### Morphology audit и pseudo-mask gate
+
+Per-image пересчёт checkpoint подтвердил aggregate результат:
+
+- mean Dice: 0.92310;
+- mean IoU: 0.86381;
+- worst area-quartile Dice: 0.91574 для самых малых поражений;
+- pseudo-mask candidates: 1089 независимых train groups;
+- confidence/component gates прошли 972 изображения.
+
+| Класс | Candidates | Passed |
+|---|---:|---:|
+| ak | 177 | 151 |
+| bcc | 320 | 271 |
+| df | 63 | 62 |
+| mel | 320 | 304 |
+| scc | 136 | 117 |
+| vasc | 73 | 67 |
+
+Этот gate подтверждает техническую пригодность сегментатора, но не
+подтверждает корректность диагноза синтетики. Следующий шаг ограничен
+визуальным аудитом pseudo-masks и generator smoke; downstream classifier
+остаётся заблокирован.
+
 ## Исследовательский вопрос
 
 Можно ли получить синтетические дерматоскопические изображения, которые:
