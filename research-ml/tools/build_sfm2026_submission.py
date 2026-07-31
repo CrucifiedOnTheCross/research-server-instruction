@@ -70,10 +70,10 @@ def configure_plotting() -> None:
 
 def build_stage10_forest(source: Path, output: Path) -> list[dict[str, object]]:
     labels = {
-        "strict_id": "Strict in-distribution",
-        "aid_radial": "AID radial",
-        "ood_far": "OOD far",
-        "random_remaining": "Random remaining",
+        "strict_id": "Строгая внутридоменная",
+        "aid_radial": "Радиальное расширение AID",
+        "ood_far": "Удалённая OOD",
+        "random_remaining": "Случайный остаток",
     }
     rows = [row for row in read_csv(source) if row["metric"] in {"mcc", "macro_f1"}]
     order = list(labels)
@@ -94,7 +94,7 @@ def build_stage10_forest(source: Path, output: Path) -> list[dict[str, object]]:
             )
 
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.2), sharey=True)
-    for ax, metric, title in zip(axes, ("mcc", "macro_f1"), ("MCC", "Macro F1")):
+    for ax, metric, title in zip(axes, ("mcc", "macro_f1"), ("MCC", "Макро-F1")):
         metric_rows = [row for row in figure_rows if row["metric"] == metric]
         y = np.arange(len(order))
         means = np.array([row["mean_difference"] for row in metric_rows])
@@ -106,10 +106,10 @@ def build_stage10_forest(source: Path, output: Path) -> list[dict[str, object]]:
         ax.axvline(0, color="#111827", lw=0.9)
         ax.grid(axis="x", color=COLORS["grid"], lw=0.6, alpha=0.8)
         ax.set_title(title)
-        ax.set_xlabel("Synthetic minus matched real replay")
+        ax.set_xlabel("Синтетика минус согласованный реальный контроль")
         ax.set_yticks(y, [labels[item] for item in order])
         ax.invert_yaxis()
-    fig.suptitle("Feature geometry moderates synthetic-data utility (validation)", y=1.03, fontweight="bold")
+    fig.suptitle("Геометрия признаков влияет на полезность синтетики (валидация)", y=1.03, fontweight="bold")
     fig.tight_layout()
     fig.savefig(output)
     plt.close(fig)
@@ -128,14 +128,14 @@ def build_stage15a_decomposition(source_dir: Path, output: Path) -> list[dict[st
     c_minus_a = arm_metric_map(source_dir / "vae_roundtrip" / "paired_seed_comparisons.csv")
     d_minus_a = arm_metric_map(source_dir / "img2img_strength05" / "paired_seed_comparisons.csv")
     contrasts = {
-        "Offline crop (B-A)": b_minus_a,
-        "VAE only (C-B)": {key: c_minus_a[key] - b_minus_a[key] for key in b_minus_a},
-        "One-step UNet (D-C)": {key: d_minus_a[key] - c_minus_a[key] for key in b_minus_a},
-        "Complete pipeline (D-A)": d_minus_a,
+        "Кадрирование (B-A)": b_minus_a,
+        "Только VAE (C-B)": {key: c_minus_a[key] - b_minus_a[key] for key in b_minus_a},
+        "Один шаг UNet (D-C)": {key: d_minus_a[key] - c_minus_a[key] for key in b_minus_a},
+        "Полный конвейер (D-A)": d_minus_a,
     }
     metrics = {
-        "auprc_ovr_macro": "Macro AUPRC",
-        "macro_f1": "Macro F1",
+        "auprc_ovr_macro": "Макро-AUPRC",
+        "macro_f1": "Макро-F1",
         "mcc": "MCC",
     }
     rows = [
@@ -154,8 +154,8 @@ def build_stage15a_decomposition(source_dir: Path, output: Path) -> list[dict[st
     ax.axhline(0, color="#111827", lw=0.9)
     ax.grid(axis="y", color=COLORS["grid"], lw=0.6, alpha=0.8)
     ax.set_xticks(x, list(contrasts), rotation=12, ha="right")
-    ax.set_ylabel("Validation difference")
-    ax.set_title("Causal decomposition of the SD1.5 img2img pipeline", fontweight="bold")
+    ax.set_ylabel("Разность на валидации")
+    ax.set_title("Причинное разложение конвейера SD1.5", fontweight="bold")
     ax.legend(frameon=False, ncol=3, loc="lower left")
     fig.tight_layout()
     fig.savefig(output)
@@ -165,10 +165,10 @@ def build_stage15a_decomposition(source_dir: Path, output: Path) -> list[dict[st
 
 def build_generator_gate(p0_path: Path, p1_path: Path, output: Path) -> list[dict[str, object]]:
     arm_names = {
-        "historical_sd15_img2img": "Historical img2img",
-        "generic_sd15_mask_inpaint": "Generic inpaint",
-        "domain_lora_img2img": "Domain LoRA img2img",
-        "domain_lora_mask_inpaint": "Domain LoRA inpaint",
+        "historical_sd15_img2img": "Историческое преобразование",
+        "generic_sd15_mask_inpaint": "Универсальное заполнение",
+        "domain_lora_img2img": "Доменная LoRA: преобразование",
+        "domain_lora_mask_inpaint": "Доменная LoRA: заполнение",
     }
     rows: list[dict[str, object]] = []
     for path in (p0_path, p1_path):
@@ -191,14 +191,14 @@ def build_generator_gate(p0_path: Path, p1_path: Path, output: Path) -> list[dic
         color = [COLORS["gray"], COLORS["amber"], COLORS["blue"], COLORS["green"]][index]
         ax.scatter(row["label_agreement"], row["mask_iou"], s=72, color=color, edgecolor="white", linewidth=0.8, zorder=3)
         ax.annotate(row["label"], (row["label_agreement"], row["mask_iou"]), xytext=(6, 4), textcoords="offset points", fontsize=8)
-    ax.axvline(0.80, color=COLORS["red"], linestyle="--", lw=1.0, label="Preregistered gates")
+    ax.axvline(0.80, color=COLORS["red"], linestyle="--", lw=1.0, label="Заранее заданные пороги")
     ax.axhline(0.70, color=COLORS["red"], linestyle="--", lw=1.0)
     ax.fill_between([0.80, 1.0], 0.70, 1.0, color=COLORS["green"], alpha=0.08)
     ax.set_xlim(0.25, 1.0)
     ax.set_ylim(0.55, 0.9)
-    ax.set_xlabel("Diagnosis-label agreement")
-    ax.set_ylabel("Mean lesion-mask IoU")
-    ax.set_title("Generator qualification: no candidate passed both gates", fontweight="bold")
+    ax.set_xlabel("Согласованность диагноза")
+    ax.set_ylabel("Средний IoU маски поражения")
+    ax.set_title("Ни один генератор не прошёл оба порога", fontweight="bold")
     ax.grid(color=COLORS["grid"], lw=0.6, alpha=0.8)
     ax.legend(frameon=False, loc="lower right")
     fig.tight_layout()

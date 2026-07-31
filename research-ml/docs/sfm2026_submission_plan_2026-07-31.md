@@ -79,6 +79,21 @@ Rebuild with:
 python tools/build_sfm2026_submission.py
 ```
 
+## Draft package completed on 31 July 2026
+
+- The 247-word English abstract and ready-to-paste registration block are in
+  `submissions/sfm2026/`.
+- A seven-page Russian full-text draft was compiled and visually checked at
+  `submissions/sfm2026/article/draft_sfm2026.pdf`.
+- Descriptive English terminology in the Russian manuscript and figures was
+  replaced with Russian equivalents. Model names, dataset names, metric
+  abbreviations, and reference titles retain their standard form.
+- Three academic figures are generated from structured Stage 10, 15A, and 16G
+  artifacts. The locked test remains closed.
+- Official SFM 2024 proceedings examples and formatting observations are listed
+  in `references/sfm_examples/README.md`; extracted PDFs remain local and are
+  not redistributed through git.
+
 ## Submission blockers owned by the authors
 
 Before pressing Submit, confirm:

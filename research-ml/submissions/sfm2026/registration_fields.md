@@ -1,19 +1,23 @@
 # SFM 2026 registration fields
 
-## Submit-ready fields
+## Ready-to-paste draft
 
-- **Proposed session:** Applications of Laser Molecular Imaging and Machine Learning VI
-- **Title:** Feature-Space Quality Does Not Guarantee Utility of Synthetic Dermoscopic Images for Long-Tailed Classification
+- **Speaker Name:** Nikita K. Zakharov
+- **Affiliation:** Samara University, Samara, Russia
 - **Country:** Russia
-- **Keywords:** dermoscopy; synthetic data; class imbalance; feature-space selection; medical image classification
-- **Abstract:** see `abstract_en.txt` (the builder verifies the 200-250 word limit)
+- **Email:** nk.z4kharov@gmail.com
+- **Event:** XIV Symposium on Optics & Biophotonics
+- **Conferences/Workshops:** Applications of Laser Molecular Imaging and Machine Learning VI
+- **Type of presentation:** Oral Report
+- **Title paper:** Feature-Space Quality Does Not Guarantee Utility of Synthetic Dermoscopic Images for Long-Tailed Classification
+- **All authors with affiliations:** N.K. Zakharov, I.A. Matveeva; Samara University, Samara, Russia
+- **Abstract:** use the complete text from `abstract_en.txt` (247 words).
 
-## Author fields requiring confirmation before submission
+If the presentation will be remote, replace `Oral Report` with `Online Oral
+Report`. Do not submit automatically until the speaker's official English
+transliteration, coauthor consent, author order, and affiliation are confirmed.
 
-- **Speaker name:** `Nikita K. Zakharov` (confirm official English transliteration)
-- **Authors and affiliation:** candidate based on the SFM-2025 program: `N.K. Zakharov, I.A. Matveeva; Samara University, Samara, Russia`
-- **Email:** use the project contact address already provided by the author
-- **Participation/presentation format:** choose the actual available option in the registration form
-- **Coauthors:** confirm the author list and order with the supervisor before submission
+## Keywords
 
-Do not submit automatically until the speaker transliteration, coauthor consent, author order, and affiliation are confirmed.
+dermoscopy; synthetic data; class imbalance; feature-space selection; medical
+image classification

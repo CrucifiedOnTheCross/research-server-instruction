@@ -1,13 +1,13 @@
 contrast,metric,difference
-Offline crop (B-A),auprc_ovr_macro,-0.00637039863108239
-Offline crop (B-A),macro_f1,-0.008392998440127161
-Offline crop (B-A),mcc,-0.015427680897499648
-VAE only (C-B),auprc_ovr_macro,-0.0002936750875816756
-VAE only (C-B),macro_f1,0.002798936137960599
-VAE only (C-B),mcc,-0.003029365251006314
-One-step UNet (D-C),auprc_ovr_macro,-0.0016327683656020362
-One-step UNet (D-C),macro_f1,-0.01933294218783136
-One-step UNet (D-C),mcc,-0.010350551738360674
-Complete pipeline (D-A),auprc_ovr_macro,-0.008296842084266101
-Complete pipeline (D-A),macro_f1,-0.024927004489997923
-Complete pipeline (D-A),mcc,-0.028807597886866636
+Кадрирование (B-A),auprc_ovr_macro,-0.00637039863108239
+Кадрирование (B-A),macro_f1,-0.008392998440127161
+Кадрирование (B-A),mcc,-0.015427680897499648
+Только VAE (C-B),auprc_ovr_macro,-0.0002936750875816756
+Только VAE (C-B),macro_f1,0.002798936137960599
+Только VAE (C-B),mcc,-0.003029365251006314
+Один шаг UNet (D-C),auprc_ovr_macro,-0.0016327683656020362
+Один шаг UNet (D-C),macro_f1,-0.01933294218783136
+Один шаг UNet (D-C),mcc,-0.010350551738360674
+Полный конвейер (D-A),auprc_ovr_macro,-0.008296842084266101
+Полный конвейер (D-A),macro_f1,-0.024927004489997923
+Полный конвейер (D-A),mcc,-0.028807597886866636

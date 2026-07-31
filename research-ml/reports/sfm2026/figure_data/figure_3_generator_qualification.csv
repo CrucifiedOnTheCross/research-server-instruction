@@ -1,5 +1,5 @@
 arm,label,label_agreement,mask_iou,outside_mask_mae,near_duplicate_fraction,technical_gate_passed
-generic_sd15_mask_inpaint,Generic inpaint,0.3333333333333333,0.6374539130273017,0.012846910850688195,0.0,False
-historical_sd15_img2img,Historical img2img,0.625,0.8266468901328959,0.020842548576183617,0.0,False
-domain_lora_img2img,Domain LoRA img2img,0.3125,0.6100190671677984,0.05397675295049945,0.0,False
-domain_lora_mask_inpaint,Domain LoRA inpaint,0.3333333333333333,0.6803341050124961,0.012883416115073487,0.0,False
+generic_sd15_mask_inpaint,Универсальное заполнение,0.3333333333333333,0.6374539130273017,0.012846910850688195,0.0,False
+historical_sd15_img2img,Историческое преобразование,0.625,0.8266468901328959,0.020842548576183617,0.0,False
+domain_lora_img2img,Доменная LoRA: преобразование,0.3125,0.6100190671677984,0.05397675295049945,0.0,False
+domain_lora_mask_inpaint,Доменная LoRA: заполнение,0.3333333333333333,0.6803341050124961,0.012883416115073487,0.0,False

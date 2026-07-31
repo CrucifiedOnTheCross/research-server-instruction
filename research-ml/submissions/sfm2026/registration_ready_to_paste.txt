@@ -1,0 +1,19 @@
+Speaker Name: Nikita K. Zakharov
+Affiliation: Samara University, Samara, Russia
+Country: Russia
+Email: nk.z4kharov@gmail.com
+
+Event: XIV Symposium on Optics & Biophotonics
+
+Conferences/Workshops: Applications of Laser Molecular Imaging and Machine Learning VI
+
+Type of presentation: Oral Report
+Title paper: Feature-Space Quality Does Not Guarantee Utility of Synthetic Dermoscopic Images for Long-Tailed Classification
+All authors with affiliations: N.K. Zakharov, I.A. Matveeva; Samara University, Samara, Russia
+
+Abstract:
+Class imbalance limits dermoscopic classifiers, yet synthetic augmentation is often evaluated without equal-budget real controls. We tested whether feature-space-selected synthesis adds utility beyond matched real replay. HAM10000 was split by lesion groups to prevent leakage. ConvNeXt-S at 384 x 384 was trained with identical initialization and budgets on replay and Stable Diffusion 1.5 img2img samples selected in DINOv2 and task-specific ConvNeXt spaces. Three paired seeds and 5,000-repeat hierarchical lesion-group bootstrap separated ranking, threshold, and calibration metrics.
+
+Geometry moderated utility in exploratory experiments: for the strict in-distribution stratum, synthetic data increased MCC by 0.066 (95% bootstrap CI 0.005 to 0.125), whereas random remaining samples reduced MCC by 0.049 (CI -0.086 to -0.013). This apparent benefit did not transfer to the stronger confirmatory baseline: synthetic data improved macro F1 by 0.012 but reduced macro AUPRC by 0.014 and melanoma AUPRC by 0.045 versus source-matched replay. Diagnostic analysis showed lower precision, density, and coverage in 11 of 12 encoder-class comparisons despite higher diversity in 11 of 12, indicating task-representation mismatch rather than simple mode collapse. A preregistered causal decomposition further showed that the complete crop-VAE-one-step denoising pipeline reduced MCC by 0.029 (CI -0.058 to -0.0004); offline cropping explained most macro-AUPRC loss.
+
+Thus, visual plausibility and proximity in a foundation-model embedding are insufficient criteria for useful synthetic dermoscopy. Source-matched replay and task-aware ranking diagnostics should be mandatory controls before synthetic augmentation is claimed to improve long-tailed classification.
