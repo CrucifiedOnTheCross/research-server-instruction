@@ -1,0 +1,36 @@
+{
+  "protocol": "stage16g_generator_smoke_v1",
+  "test_evaluated": false,
+  "classifier_run_dir": "outputs/stage16_isic2019_real_ce_natural_384/20260729-211405_42",
+  "segmenter_checkpoint": "outputs/stage16g_segmentation/stage16g_isic2018_deeplabv3_segmentation_384/best.pt",
+  "arms": {
+    "generic_sd15_mask_inpaint": {
+      "images": 48,
+      "hash_failures": 0,
+      "label_agreement": 0.3333333333333333,
+      "mean_true_label_probability": 0.3084989102705246,
+      "mean_source_cosine_similarity": 0.32826055551413447,
+      "near_duplicate_fraction": 0.0,
+      "mean_mask_iou": 0.6374539130273017,
+      "mean_mask_dice": 0.7600910221084263,
+      "mean_outside_mask_mae": 0.012846910850688195,
+      "mean_inside_mask_mae": 0.06465204533499976,
+      "technical_gate_passed": false
+    },
+    "historical_sd15_img2img": {
+      "images": 48,
+      "hash_failures": 0,
+      "label_agreement": 0.625,
+      "mean_true_label_probability": 0.5573081035593835,
+      "mean_source_cosine_similarity": 0.667584770048658,
+      "near_duplicate_fraction": 0.0,
+      "mean_mask_iou": 0.8266468901328959,
+      "mean_mask_dice": 0.8999022158785918,
+      "mean_outside_mask_mae": 0.020842548576183617,
+      "mean_inside_mask_mae": 0.032726036850363016,
+      "technical_gate_passed": false
+    }
+  },
+  "p1_allowed": false,
+  "visual_audit_required": true
+}

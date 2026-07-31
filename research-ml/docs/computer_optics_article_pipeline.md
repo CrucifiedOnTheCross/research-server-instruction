@@ -12,6 +12,21 @@ collect evidence from training artifacts, copy candidate figures, create a
 journal-aware LaTeX draft, and give the next agent a strict brief so that the
 scientific text is traceable to files.
 
+## Saratov Fall Meeting 2026 derivative
+
+The conference abstract and figure package are built separately because SFM
+2026 requests a 200-250 word abstract rather than the Computer Optics journal
+template:
+
+```bash
+python tools/build_sfm2026_submission.py
+```
+
+See `docs/sfm2026_submission_plan_2026-07-31.md` and
+`submissions/sfm2026/`. The conference builder uses structured Stage 10, 12,
+15A, and 16G evidence, verifies the abstract word count, records input hashes,
+and does not open the locked test.
+
 ## Why LaTeX
 
 Computer Optics accepts DOCX or TEX. For automatic article generation, TEX is the
@@ -114,4 +129,3 @@ Before submission, manually or with a dedicated formatting pass:
 6. Prepare the separate figures ZIP under 20 MB.
 7. Add the signed first-page scan and open-publication expert conclusion where
    required.
-

@@ -1,0 +1,26 @@
+{
+  "status": "complete",
+  "stage": "stage15a",
+  "runs": 6,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "locked_test_evaluated": false,
+  "validation_rows": 1280,
+  "validation_groups": 599,
+  "bootstrap_replicates": 5000,
+  "metric_recompute_max_abs_error": 4.1059251248976025e-08,
+  "prediction_alignment_passed": true,
+  "decision": {
+    "classification": "null_or_negative",
+    "global_direction_positive": false,
+    "macro_f1_and_mcc_positive_3_of_3": false,
+    "macro_f1_or_mcc_lesion_ci_above_zero": false,
+    "melanoma_guardrail_passed": true,
+    "predeclared_melanoma_recall_margin": -0.05,
+    "note": "This is an internal validation confirmation. It does not authorize opening the locked test without a separate documented decision."
+  },
+  "calibration_limitation": "Exploratory group-held-out diagnostic after validation-based early stopping."
+}

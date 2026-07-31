@@ -1,0 +1,60 @@
+{
+  "conference": "Saratov Fall Meeting XXX (SFM 2026)",
+  "abstract_word_count": 247,
+  "locked_test_evaluated": false,
+  "new_training_started_for_submission": false,
+  "examples_created": true,
+  "inputs": [
+    {
+      "path": "reports\\sfm2026\\source\\stage10_hierarchical_lesion_bootstrap.csv",
+      "sha256": "0b2a1e00fdb001bf3bd9c8ca76e08b2577a17cb4592ee85af3e0220e3478bb8e",
+      "bytes": 2819
+    },
+    {
+      "path": "reports\\sfm2026\\source\\stage12\\analysis_summary.json",
+      "sha256": "144f6ba53a877bb6a54961f9d2f20d37edccf60df02a14315b16cfe9d2fb1c02",
+      "bytes": 1665
+    },
+    {
+      "path": "reports\\sfm2026\\source\\stage15a\\offline_crop\\paired_seed_comparisons.csv",
+      "sha256": "8e6820ca6470495b3a5fe3b0966858a61f5b1dfba7ecbac754954ae1e5665d21",
+      "bytes": 2580
+    },
+    {
+      "path": "reports\\sfm2026\\source\\stage15a\\vae_roundtrip\\paired_seed_comparisons.csv",
+      "sha256": "8e5febc85d1995be1b3ea8dafe5ace8904af41487a78221b9cf56a7e7fd6a6e7",
+      "bytes": 2611
+    },
+    {
+      "path": "reports\\sfm2026\\source\\stage15a\\img2img_strength05\\paired_seed_comparisons.csv",
+      "sha256": "631bbd878a38f06922d1515264772e08cd3d1ec0efaaf382026144de8a3fd9d2",
+      "bytes": 2708
+    },
+    {
+      "path": "reports\\sfm2026\\source\\stage15a\\img2img_strength05\\hierarchical_lesion_bootstrap.csv",
+      "sha256": "d1c77c8e5e0963dfc3c38e596a5a64e986464ec02b9caa6bf21f8f759901ed6d",
+      "bytes": 830
+    },
+    {
+      "path": "reports\\sfm2026\\source\\stage16g_p0_qualification_summary.json",
+      "sha256": "8a51b49f6ed429cef93ab4c2440d1bff89c2735bd4ed148e0b8d124023572981",
+      "bytes": 1365
+    },
+    {
+      "path": "reports\\sfm2026\\source\\stage16g_p1_qualification_summary.json",
+      "sha256": "062f34525ce1ba20c07bf018c16535220e6c9d338ba90e34689ff185c0351c8c",
+      "bytes": 1365
+    },
+    {
+      "path": "submissions\\sfm2026\\abstract_en.txt",
+      "sha256": "ca8d8738d60a524854425afa6fceae5d794c6e39a7c78bed9e9f9b47aef90bc9",
+      "bytes": 1761
+    }
+  ],
+  "figures": [
+    "reports\\sfm2026\\figures\\figure_1_stage10_geometry_forest.png",
+    "reports\\sfm2026\\figures\\figure_2_stage15a_causal_decomposition.png",
+    "reports\\sfm2026\\figures\\figure_3_generator_qualification.png",
+    "reports\\sfm2026\\figures\\figure_4_generator_examples_internal_audit.jpg"
+  ]
+}

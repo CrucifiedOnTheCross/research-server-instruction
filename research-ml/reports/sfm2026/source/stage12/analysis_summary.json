@@ -1,0 +1,66 @@
+{
+  "status": "complete",
+  "stage": "stage12",
+  "locked_test_evaluated": false,
+  "synthetic_rows": 90,
+  "replay_presentations": 90,
+  "unique_sources": 84,
+  "target_classes": [
+    "mel",
+    "akiec",
+    "bkl"
+  ],
+  "encoders": [
+    "dino",
+    "convnext_real_seed42",
+    "convnext_real_seed43",
+    "convnext_real_seed44"
+  ],
+  "prdc_k": 5,
+  "bootstrap_replicates": 5000,
+  "reference_excludes_all_synthetic_sources": true,
+  "prediction_seeds": [
+    42,
+    43,
+    44
+  ],
+  "failure_modes": {
+    "coverage_failure": {
+      "supported": true,
+      "coverage_lower_comparisons": 11,
+      "total_comparisons": 12,
+      "precision_lower_comparisons": 11,
+      "density_lower_comparisons": 11
+    },
+    "simple_diversity_collapse": {
+      "supported": false,
+      "synthetic_vendi_higher_comparisons": 11,
+      "total_comparisons": 12,
+      "interpretation": "Higher diversity does not imply useful class coverage."
+    },
+    "representation_mismatch": {
+      "supported": true,
+      "dino_mean_novelty_ratio_by_class": {
+        "akiec": 0.6471009241095698,
+        "bkl": 0.7141407286038344,
+        "mel": 0.760862591756741
+      },
+      "convnext_mean_novelty_ratio_by_class": {
+        "akiec": 1.2461630243019026,
+        "bkl": 1.856648743536974,
+        "mel": 1.0759691106583775
+      }
+    },
+    "frequency_gap": {
+      "supported": true,
+      "significant_paired_comparisons": 14,
+      "total_comparisons": 15
+    },
+    "melanoma_ranking_tail_failure": {
+      "supported": true,
+      "auprc_negative_seeds": 3,
+      "mean_negative_q90_delta": 0.1126834699999999,
+      "mean_positive_q10_delta": -0.023560645
+    }
+  }
+}
