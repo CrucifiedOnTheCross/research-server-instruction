@@ -1,0 +1,51 @@
+experiment:
+  name: stage1_monica_ir100_resnet50_ce
+  seed: 42
+
+data:
+  root: /srv/research/projects/default/isic2019
+  train_csv: data_splits/monica/ir100/train.csv
+  val_csv: data_splits/monica/ir100/val.csv
+  test_csv: data_splits/monica/ir100/test.csv
+  image_size: 224
+  resize_size: 264
+  num_classes: 8
+  class_names: [nv, mel, bcc, bkl, ak, scc, vasc, df]
+
+model:
+  name: resnet50
+  pretrained: true
+
+training:
+  epochs: 50
+  physical_batch_size: 128
+  accumulation_steps: 2
+  num_workers: 12
+  optimizer: adam
+  learning_rate: 0.0003
+  weight_decay: 0.0
+  amp_dtype: bfloat16
+  channels_last: true
+  deterministic: true
+  monitor: balanced_accuracy
+  monitor_mode: max
+
+augmentation:
+  train:
+    random_crop: true
+    horizontal_flip: true
+    vertical_flip: true
+    rotation_degrees: 10
+    color_jitter: [0.2, 0.2, 0.2, 0.2]
+  validation:
+    center_crop: true
+
+evaluation:
+  run_test: false
+  ece_bins: 15
+
+tracking:
+  output_root: outputs/stage1
+  mlflow_tracking_uri: http://10.200.1.180:5000
+  mlflow_experiment: ISIC2019-LT Stage1
+

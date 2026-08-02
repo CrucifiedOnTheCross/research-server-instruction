@@ -1,0 +1,8 @@
+data/
+outputs/
+*.pt
+*.ckpt
+__pycache__/
+*.pyc
+.pytest_cache/
+
