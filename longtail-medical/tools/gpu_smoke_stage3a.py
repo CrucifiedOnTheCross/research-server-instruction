@@ -59,7 +59,12 @@ def main() -> None:
         finite = bool(torch.isfinite(loss))
         if not finite:
             raise RuntimeError(f"Non-finite Stage 3A smoke loss: {name}")
-        results.append({"arm": name, "method": loss_config["method"], "loss": float(loss), "finite": finite})
+        results.append({
+            "arm": name,
+            "method": loss_config["method"],
+            "loss": float(loss.detach()),
+            "finite": finite,
+        })
         del optimizer, objective, model
         torch.cuda.empty_cache()
     payload = {
