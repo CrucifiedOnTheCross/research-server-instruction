@@ -52,3 +52,19 @@ def build_mlflow_tags(
     if run_signature:
         tags["run_signature"] = run_signature
     return tags
+
+
+def namespace_epoch_metrics(row: Mapping) -> dict[str, float]:
+    """Add readable MLflow namespaces while preserving legacy metric keys."""
+    metrics = {
+        str(key): float(value) for key, value in row.items() if key != "epoch"
+    }
+    metrics["train/loss"] = float(row["train_loss"])
+    for key, value in row.items():
+        if key.startswith("val_"):
+            metrics[f"val/{key.removeprefix('val_')}"] = float(value)
+    if "epoch_seconds" in row:
+        metrics["system/epoch_seconds"] = float(row["epoch_seconds"])
+    if "gpu_max_memory_gib" in row:
+        metrics["system/gpu_max_memory_gib"] = float(row["gpu_max_memory_gib"])
+    return metrics

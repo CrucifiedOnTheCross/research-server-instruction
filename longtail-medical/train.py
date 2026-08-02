@@ -23,7 +23,7 @@ from longtail_medical.config import load_config, write_resolved_config
 from longtail_medical.data import ManifestDataset, build_transforms
 from longtail_medical.metrics import classification_metrics
 from longtail_medical.provenance import code_commit, resolved_config_sha256, run_signature, sha256_file
-from longtail_medical.tracking import build_mlflow_tags
+from longtail_medical.tracking import build_mlflow_tags, namespace_epoch_metrics
 
 
 def seed_everything(seed: int, deterministic: bool) -> None:
@@ -270,7 +270,7 @@ def train(config_path: Path) -> Path:
                     writer.writeheader()
                 writer.writerow(row)
             if mlflow:
-                mlflow.log_metrics({key: float(value) for key, value in row.items() if key != "epoch"}, step=epoch)
+                mlflow.log_metrics(namespace_epoch_metrics(row), step=epoch)
             if float(val_metrics[monitor]) > best_value:
                 best_value = float(val_metrics[monitor])
                 torch.save({"epoch": epoch, "model_state_dict": model.state_dict(), "optimizer_state_dict": optimizer.state_dict(), "monitor": monitor, "monitor_value": best_value, "checkpoint_policy": "best_validation", "run_signature": signature, "config": config}, output / "best.pt")

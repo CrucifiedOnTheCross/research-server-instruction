@@ -180,3 +180,55 @@ for these tables; confirmatory runs live under `outputs/stage2_confirmatory`.
 
 The exact inflation cannot be borrowed from another imaging modality. It must
 be measured on these manifests with paired seeds and lesion-group uncertainty.
+
+## Confirmatory results
+
+All 12 preregistered runs completed at the same training commit
+`d0824eaebabd5f699f49236df8534a2864b61b49`. Readiness accepted exactly 12
+runs with matching configuration, split, registry, and checkpoint signatures.
+The locked test was opened once. Primary results use `last.pt`; `best.pt`
+remains a separately named secondary benchmark.
+
+### Primary lesion-disjoint baseline
+
+| Unit | MCC, mean (SD) | Balanced accuracy | Macro F1 | Macro AUPRC | ECE |
+|---|---:|---:|---:|---:|---:|
+| Image | 0.428 (0.042) | 0.484 (0.041) | 0.448 (0.051) | 0.555 (0.035) | 0.413 (0.040) |
+| Lesion | **0.489 (0.061)** | **0.513 (0.059)** | 0.489 (0.065) | 0.632 (0.054) | 0.304 (0.054) |
+
+Across seeds 42/43/44, lesion-level MCC bootstrap means were 0.466, 0.443,
+and 0.558. Their seed-specific 95% lesion-stratified intervals were
+[0.419, 0.512], [0.394, 0.492], and [0.509, 0.606]. Split variability must
+therefore be quantified in Stage 3B in addition to model-seed variability.
+
+### Retrospective MONICA contamination audit
+
+| Primary checkpoint (`last.pt`) | Image MCC | Balanced accuracy | Macro AUPRC | ECE |
+|---|---:|---:|---:|---:|
+| Original MONICA | 0.569 (0.004) | 0.611 (0.003) | 0.723 (0.007) | 0.295 (0.006) |
+| Exposure-matched | 0.403 (0.013) | 0.461 (0.010) | 0.537 (0.010) | 0.437 (0.008) |
+| Unmatched | 0.374 (0.013) | 0.436 (0.012) | 0.515 (0.019) | 0.457 (0.008) |
+
+The preregistered exposure-matched-minus-original effect was MCC **-0.166**
+(seed SD 0.012; paired lesion-bootstrap 95% CI [-0.191, -0.142]) and balanced
+accuracy **-0.150** (95% CI [-0.171, -0.128]). The unmatched effect was larger:
+MCC -0.196 (95% CI [-0.220, -0.173]). Thus reduced training exposure explains
+part, but not all, of the original-to-cleaned difference.
+
+Within Original MONICA, the descriptive leaked subset had MCC 0.684 and macro
+AUPRC 0.842, versus MCC 0.461 and macro AUPRC 0.591 on the clean subset. This
+is strong evidence of optimistic association, but it is not labelled a causal
+estimate because test lesion identifiers informed the retrospective audit.
+
+## Frozen decision for Stage 3
+
+The sole development protocol is `ISIC 2019 LT IR=100 lesion-disjoint`.
+Original MONICA is retained only for one final benchmark-comparability check;
+exposure-matched is retained only as the principal retrospective audit arm;
+unmatched is complete as a sensitivity analysis and is not scaled further.
+No future loss, sampler, augmentation, architecture, or synthetic-data choice
+may be selected on MONICA validation or test results.
+
+MLflow contains all 12 runs with grouping tags and separate `test/*` primary
+and `test_best/*` secondary metrics. Future live runs emit both legacy metric
+keys and readable namespaces: `train/loss`, `val/*`, and `system/*`.
