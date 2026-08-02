@@ -44,7 +44,7 @@ def main() -> None:
     result = {
         "status": "passed",
         "batch_size": args.batch_size,
-        "loss": float(loss),
+        "loss": float(loss.detach()),
         "finite_loss": bool(torch.isfinite(loss)),
         "gpu": torch.cuda.get_device_name(0),
         "max_memory_gib": torch.cuda.max_memory_allocated() / 2**30,

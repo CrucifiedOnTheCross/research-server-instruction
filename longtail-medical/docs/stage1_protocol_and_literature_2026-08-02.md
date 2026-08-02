@@ -72,10 +72,11 @@ crop, applies horizontal and vertical flips, rotation up to 10 degrees, and
 color jitter of 0.2. Validation uses resize 264 and center crop 224. The authors
 also note that 50 epochs may be suboptimal for several compared methods.
 
-The RTX 5080 implementation starts with physical batch 128 and gradient
-accumulation 2. This preserves effective batch size, not exact per-step batch
-statistics or bitwise equivalence. A server memory smoke test may qualify
-physical batch 256 before the definitive run.
+The RTX 5080 smoke test qualified physical batch 256 directly: loss was finite
+at 2.122 and peak allocated GPU memory was 10.87 GiB. The definitive run thus
+uses accumulation 1 and preserves the published batch size without a gradient
+accumulation approximation. This smoke result is a hardware qualification, not
+a scientific run.
 
 The existing server environment was qualified on 2026-08-02: PyTorch
 2.12.1+cu130, torchvision 0.27.1+cu130, scikit-learn 1.9.0, MLflow 3.14.0,

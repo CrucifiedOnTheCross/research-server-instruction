@@ -40,8 +40,8 @@ bash scripts/run_stage1_monica_ir100.sh
 The default configuration uses the published MONICA baseline settings:
 ResNet-50 with ImageNet weights, 224 px input, Adam, learning rate `3e-4`,
 50 epochs, strong augmentation, and effective batch 256. On the RTX 5080 the
-physical batch is 128 with two-step gradient accumulation. This hardware
-adaptation is recorded and is not claimed to be bitwise identical to MONICA.
+physical batch 256 was qualified directly (10.87 GiB peak allocated memory), so
+no gradient accumulation is used.
 
 ## Test
 
@@ -56,4 +56,3 @@ python -m unittest discover -s tests -v
   counts, epoch metrics, best validation predictions, and checkpoint metadata.
 - `evaluation.run_test` is `false` in Stage 1.
 - Images and model checkpoints are not committed to git.
-
