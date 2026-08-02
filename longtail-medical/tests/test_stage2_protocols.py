@@ -1,6 +1,6 @@
 import unittest
 
-from tools.build_stage2_protocols import select_exact_groups
+from tools.build_stage2_protocols import full_overlap_audit, select_exact_groups
 
 
 class Stage2ProtocolTest(unittest.TestCase):
@@ -23,6 +23,17 @@ class Stage2ProtocolTest(unittest.TestCase):
         groups = [("a", [{}, {}]), ("b", [{}, {}])]
         with self.assertRaises(RuntimeError):
             select_exact_groups(groups, 3)
+
+    def test_triple_overlap_is_reported(self):
+        rows = {
+            "train": [{"lesion_id": "shared", "label": "0"}],
+            "validation": [{"lesion_id": "shared", "label": "0"}],
+            "test": [{"lesion_id": "shared", "label": "0"}],
+        }
+        audit = full_overlap_audit(rows)
+        triple = audit["train_validation_test"]
+        self.assertEqual(triple["shared_lesion_ids"], 1)
+        self.assertEqual(triple["affected_images"], {"train": 1, "validation": 1, "test": 1})
 
 
 if __name__ == "__main__":

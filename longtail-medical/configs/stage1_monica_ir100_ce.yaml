@@ -3,6 +3,7 @@ experiment:
   seed: 42
 
 data:
+  protocol_version: monica_isic2019_lt_ir100_pinned_3dd808d6
   root: /srv/research/projects/default/isic2019
   train_csv: data_splits/monica/ir100/train.csv
   val_csv: data_splits/monica/ir100/val.csv
@@ -29,6 +30,11 @@ training:
   deterministic: true
   monitor: balanced_accuracy
   monitor_mode: max
+
+checkpoint:
+  primary_policy: last
+  secondary_policy: best_validation
+  monitor: balanced_accuracy
 
 augmentation:
   train:

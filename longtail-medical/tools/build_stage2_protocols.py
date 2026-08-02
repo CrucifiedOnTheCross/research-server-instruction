@@ -11,6 +11,8 @@ import random
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import numpy as np
+
 try:
     from tools.prepare_isic2019_monica import CLASS_NAMES, official_label, read_csv_index
 except ModuleNotFoundError:  # Direct execution from the tools directory.
@@ -35,6 +37,109 @@ def write_rows(path: Path, rows: list[dict[str, str]]) -> None:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def overlap_record(named_rows: dict[str, list[dict]], split_names: tuple[str, ...]) -> dict:
+    lesion_sets = {
+        name: {row["lesion_id"] for row in named_rows[name] if row["lesion_id"]}
+        for name in split_names
+    }
+    shared = set.intersection(*(lesion_sets[name] for name in split_names))
+    return {
+        "splits": list(split_names),
+        "shared_lesion_ids": len(shared),
+        "affected_images": {
+            name: sum(row["lesion_id"] in shared for row in named_rows[name])
+            for name in split_names
+        },
+        "affected_images_by_class": {
+            name: {
+                CLASS_NAMES[label]: sum(
+                    row["lesion_id"] in shared and int(row["label"]) == label
+                    for row in named_rows[name]
+                )
+                for label in range(8)
+            }
+            for name in split_names
+        },
+    }
+
+
+def full_overlap_audit(named_rows: dict[str, list[dict]]) -> dict:
+    return {
+        "train_validation": overlap_record(named_rows, ("train", "validation")),
+        "train_test": overlap_record(named_rows, ("train", "test")),
+        "validation_test": overlap_record(named_rows, ("validation", "test")),
+        "train_validation_test": overlap_record(named_rows, ("train", "validation", "test")),
+    }
+
+
+def write_replacement_balance_report(
+    path: Path, cohorts: list[tuple[str, list[dict]]], metadata: dict[str, dict[str, str]],
+    image_dir: Path,
+) -> list[dict]:
+    from PIL import Image
+
+    lesion_counts = Counter(row.get("lesion_id", "") for row in metadata.values() if row.get("lesion_id", ""))
+    fields = [
+        "cohort", "image_id", "class_name", "age_approx", "sex",
+        "anatomical_site_general", "source_dataset", "source_basis", "width", "height",
+        "lesion_id", "images_per_lesion", "is_repeated_exposure",
+    ]
+    records = []
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for cohort, rows in cohorts:
+            for row in rows:
+                image_id = row["image_id"]
+                meta = metadata[image_id]
+                image_path = image_dir / f"{image_id}.jpg"
+                width = height = ""
+                if image_path.exists():
+                    with Image.open(image_path) as image:
+                        width, height = image.size
+                lesion_id = meta.get("lesion_id", "")
+                prefix = lesion_id.split("_", 1)[0].upper() if "_" in lesion_id else ""
+                source = {"HAM": "ham10000", "BCN": "bcn20000"}.get(prefix, "unknown")
+                record = {
+                    "cohort": cohort,
+                    "image_id": image_id,
+                    "class_name": CLASS_NAMES[int(row["label"])],
+                    "age_approx": meta.get("age_approx", ""),
+                    "sex": meta.get("sex", ""),
+                    "anatomical_site_general": meta.get("anatom_site_general", ""),
+                    "source_dataset": source,
+                    "source_basis": "inferred_from_lesion_id_prefix" if source != "unknown" else "unavailable",
+                    "width": width,
+                    "height": height,
+                    "lesion_id": lesion_id,
+                    "images_per_lesion": lesion_counts.get(lesion_id, 1),
+                    "is_repeated_exposure": cohort == "repeated_clean_exposure",
+                }
+                writer.writerow(record)
+                records.append(record)
+    return records
+
+
+def balance_summary(records: list[dict]) -> dict:
+    result = {}
+    for cohort in sorted({row["cohort"] for row in records}):
+        rows = [row for row in records if row["cohort"] == cohort]
+        numeric = lambda field: [float(row[field]) for row in rows if row[field] not in ("", None)]
+        result[cohort] = {
+            "exposures": len(rows),
+            "unique_images": len({row["image_id"] for row in rows}),
+            "class_counts": dict(Counter(row["class_name"] for row in rows)),
+            "sex_counts": dict(Counter(row["sex"] or "missing" for row in rows)),
+            "anatomical_site_counts": dict(Counter(row["anatomical_site_general"] or "missing" for row in rows)),
+            "source_counts": dict(Counter(row["source_dataset"] for row in rows)),
+            "age_mean": float(np.mean(numeric("age_approx"))) if numeric("age_approx") else None,
+            "width_mean": float(np.mean(numeric("width"))) if numeric("width") else None,
+            "height_mean": float(np.mean(numeric("height"))) if numeric("height") else None,
+            "images_per_lesion_mean": float(np.mean(numeric("images_per_lesion"))) if numeric("images_per_lesion") else None,
+        }
+    return result
 
 
 def select_exact_groups(groups: list[tuple[str, list[dict]]], target: int) -> tuple[list[dict], list[tuple[str, list[dict]]]]:
@@ -126,6 +231,21 @@ def build_causal_control(root: Path, monica_dir: Path, output: Path, seed: int) 
     clean_test = [row for row in test if row not in leaked_test]
     write_rows(output / "test_leaked.csv", leaked_test)
     write_rows(output / "test_clean.csv", clean_test)
+    replacement_records = write_replacement_balance_report(
+        output / "replacement_balance_report.csv",
+        [("removed", removed), ("unique_replacement", replacements), ("repeated_clean_exposure", repeated)],
+        metadata,
+        image_dir,
+    )
+    (output / "replacement_balance_summary.json").write_text(
+        json.dumps({
+            "source_dataset_is_inferred": True,
+            "source_inference_rule": "HAM_* -> ham10000; BCN_* -> bcn20000; otherwise unknown",
+            "matching_guarantees": ["class", "number_of_training_exposures"],
+            "not_guaranteed": ["source", "device", "age", "sex", "anatomical_site", "resolution", "clinical_difficulty"],
+            "cohorts": balance_summary(replacement_records),
+        }, indent=2), encoding="utf-8"
+    )
     final_counts = Counter(int(row["label"]) for row in matched)
     if [final_counts[index] for index in range(8)] != TARGET_TRAIN:
         raise RuntimeError("Matched train class counts changed")
@@ -147,6 +267,14 @@ def build_causal_control(root: Path, monica_dir: Path, output: Path, seed: int) 
         "manifest_sha256": {path.name: sha256(path) for path in output.glob("*.csv")},
     }
     (output / "causal_control_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    audit = {
+        "protocol_version": "stage2_retrospective_contamination_v2",
+        "test_predictions_evaluated": False,
+        "original_monica": full_overlap_audit({"train": train, "validation": val, "test": test}),
+        "decontaminated_unmatched": full_overlap_audit({"train": kept, "validation": val, "test": test}),
+        "decontaminated_exposure_matched": full_overlap_audit({"train": matched, "validation": val, "test": test}),
+    }
+    (output.parent / "overlap_audit.json").write_text(json.dumps(audit, indent=2), encoding="utf-8")
     return report
 
 
@@ -197,6 +325,28 @@ def build_lesion_disjoint(root: Path, output: Path, seed: int) -> dict:
         "counts": {split: len(rows) for split, rows in splits.items()},
         "class_counts": {split: {CLASS_NAMES[i]: sum(int(row["label"]) == i for row in rows) for i in range(8)} for split, rows in splits.items()},
         "lesion_overlap": overlaps,
+        "split_units": {
+            split: {
+                CLASS_NAMES[label]: {
+                    "images": sum(int(row["label"]) == label for row in rows),
+                    "unique_lesions": len({
+                        row["lesion_id"] or f"image:{row['image_id']}"
+                        for row in rows if int(row["label"]) == label
+                    }),
+                    "images_per_lesion": (
+                        sum(int(row["label"]) == label for row in rows)
+                        / len({row["lesion_id"] or f"image:{row['image_id']}" for row in rows if int(row["label"]) == label})
+                    ),
+                }
+                for label in range(8)
+            }
+            for split, rows in splits.items()
+        },
+        "image_level_imbalance_ratio_train": max(TARGET_TRAIN) / min(TARGET_TRAIN),
+        "lesion_level_imbalance_ratio_train": (
+            max(len({row["lesion_id"] or f"image:{row['image_id']}" for row in splits["train"] if int(row["label"]) == label}) for label in range(8))
+            / min(len({row["lesion_id"] or f"image:{row['image_id']}" for row in splits["train"] if int(row["label"]) == label}) for label in range(8))
+        ),
         "manifest_sha256": {path.name: sha256(path) for path in output.glob("*.csv")},
     }
     (output / "protocol_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

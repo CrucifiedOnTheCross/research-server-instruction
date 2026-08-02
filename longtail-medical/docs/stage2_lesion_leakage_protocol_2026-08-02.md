@@ -6,10 +6,16 @@ Current test state: closed
 
 The generated strict protocol contains exactly 10,322/400/800 images and has
 zero lesion overlap for train-validation, train-test, and validation-test.
-For the causal control, 673 train images are removed. Of these, 620 can be
+For the retrospective controlled audit, 673 train images are removed. Of these, 620 can be
 replaced by unique eligible images; the remaining 38 VASC and 15 DF exposures
 are matched by repeated clean sampling. The test decomposition contains 383
 leaked and 417 clean images.
+
+The full overlap audit additionally found 44 lesion IDs present in train,
+validation, and test simultaneously, affecting 86, 55, and 59 images in the
+three splits. Removing test-overlapping lesions therefore also reduces part of
+the train-validation overlap. This is measured explicitly and prevents a claim
+that lesion contamination is the only changed factor.
 
 ## Motivation
 
@@ -35,7 +41,7 @@ MCC, macro/per-class AUROC and AUPRC, calibration, and class support. Also use a
 lesion-group bootstrap. The difference is labelled an association, not a pure
 causal effect.
 
-## Experiment B: matched contamination intervention
+## Experiment B: retrospective controlled lesion-contamination audit
 
 Compare two training arms on the same unchanged validation and test images:
 
@@ -56,23 +62,37 @@ available outside the benchmark lists. The implementation therefore saves:
 Repeated exposure is a documented secondary intervention and weakens a purely
 causal interpretation. Results from both clean arms must be shown; the paper
 must not describe the exposure-matched arm as containing all-unique images.
+`replacement_balance_report.csv` records class, age, sex, anatomical site,
+resolution, lesion multiplicity, and source for each removed/replacement
+exposure. Source is not an official metadata column and is explicitly marked as
+an inference from `HAM_*`/`BCN_*` lesion prefixes. Matching is guaranteed only
+for class and exposure count, not source, device, demographics, resolution, or
+clinical difficulty.
 
 This keeps architecture, optimizer, augmentation, training duration, class
 counts, validation set, test set, and seeds fixed. It changes the image content
 and removes train-test lesion contamination. Residual train-validation overlap
 from MONICA is retained in both arms and disclosed because removing it would
-change two factors at once.
+change two factors at once. Test predictions and metrics were not inspected
+while constructing the protocol, but test lesion identifiers were used for
+removal, replacement, and subgroup definition. Consequently this is not a
+blind test or a pure causal estimate.
 
-Run seeds 42, 43, and 44. Test is opened once only after all six checkpoints
+Run seeds 42, 43, and 44. Test is opened once only after all twelve checkpoints
 are frozen. Primary paired effect:
 
-`metric(decontaminated_matched) - metric(original_monica)`.
+`MCC(decontaminated_exposure_matched, last.pt) - MCC(original_monica, last.pt)`.
 
-The validation-only training matrix additionally includes the unmatched clean
-arm and the strict lesion-disjoint arm. It consists of 11 new runs: original
-MONICA seeds 43-44 plus three seeds for each of unmatched clean,
-exposure-matched clean, and lesion-disjoint protocols. Stage 1 seed 42 is the
-original-MONICA anchor. Every run uses 50 epochs without early stopping.
+Balanced accuracy is the key secondary endpoint. Macro F1, macro/per-class
+AUROC and AUPRC, melanoma sensitivity, per-class recall, NLL, Brier score, and
+ECE are additional endpoints. The unmatched-minus-original contrast is a
+robustness analysis. A leaked-minus-clean contrast is descriptive association.
+
+The prior 11-run launch is marked as a pilot and excluded. The confirmatory
+matrix contains 12 new runs: all four arms at seeds 42, 43, and 44. Every run
+uses the same code commit, environment, ResNet-50 initialization policy,
+augmentation, Adam settings, physical batch 256, and 50 epochs without early
+stopping. `last.pt` is primary; validation-selected `best.pt` is secondary.
 
 ## Experiment C: primary lesion-disjoint protocol
 
@@ -85,6 +105,24 @@ in more than one split. Empty identifiers, if any, are isolated by image ID.
 This protocol answers generalization to unseen lesions. It is not directly
 comparable numerically with MONICA because its images differ. It receives a
 separate experiment name and is the primary protocol for the future article.
+MCC is its primary scientific metric and balanced accuracy the key secondary.
+Metrics are reported both per image and after averaging probabilities within
+each lesion. Image and lesion counts and their respective imbalance ratios are
+saved because image-level IR=100 does not imply lesion-level IR=100.
+
+## Checkpoints and uncertainty
+
+All models run for the fixed 50 epochs. Primary results use `last.pt` only.
+`best.pt`, selected by validation balanced accuracy, appears only in a separate
+benchmark-sensitivity table. Results from the two checkpoint policies are never
+mixed in one column.
+
+Uncertainty uses 10,000 paired lesion-stratified bootstrap repetitions. Lesions
+are sampled with replacement within class, all images of each selected lesion
+are retained, and identical bootstrap draws are applied to compared models.
+The report includes each seed's effect, mean and standard deviation across
+seeds, and a 95% paired lesion-bootstrap interval. A t-test over three seeds is
+not the primary inferential procedure.
 
 ## Locked-test policy
 
@@ -94,9 +132,21 @@ Test predictions are forbidden until:
 2. Seeds and model selection rules are frozen.
 3. All checkpoints for a comparison are complete.
 4. The evaluation script checks the preregistered manifest hashes.
+5. Exactly 12 runs have matching signatures containing git commit, resolved
+   configuration hash, train and validation hashes, protocol version,
+   checkpoint policy, and epoch count.
+6. Both `last.pt` and `best.pt` exist and carry the same run signature.
 
-No hyperparameter changes may be made after test inspection. Stage 1 has not
-loaded or evaluated any test image.
+The one-shot evaluation creates a start marker before reading any test image
+and refuses a second invocation. No hyperparameter changes may be made after
+test inspection. Stage 1 and the stopped Stage 2 pilot have not loaded or
+evaluated any test image.
+
+The planned outputs are separated into four tables: MONICA benchmark results
+from `best.pt`; retrospective contamination effects from `last.pt`; descriptive
+full/leaked/clean MONICA-test results; and primary lesion-disjoint image- and
+lesion-level results. The stopped pilot under `outputs/stage2` is never eligible
+for these tables; confirmatory runs live under `outputs/stage2_confirmatory`.
 
 ## Evidence from primary sources
 

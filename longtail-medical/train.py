@@ -3,12 +3,9 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
-import os
 import platform
 import random
-import subprocess
 import sys
 import time
 from collections import Counter
@@ -25,14 +22,7 @@ from torchvision.models import ResNet50_Weights, resnet50
 from longtail_medical.config import load_config, write_resolved_config
 from longtail_medical.data import ManifestDataset, build_transforms
 from longtail_medical.metrics import classification_metrics
-
-
-def file_hash(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+from longtail_medical.provenance import code_commit, resolved_config_sha256, run_signature, sha256_file
 
 
 def seed_everything(seed: int, deterministic: bool) -> None:
@@ -49,13 +39,7 @@ def resolve_manifest(project_root: Path, configured: str) -> Path:
     return path if path.is_absolute() else project_root / path
 
 
-def environment_payload() -> dict:
-    try:
-        commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
-        ).strip()
-    except Exception:
-        commit = None
+def environment_payload(commit: str) -> dict:
     gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else None
     return {
         "captured_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -157,6 +141,7 @@ def maybe_start_mlflow(config: dict, run_name: str):
 def train(config_path: Path) -> Path:
     project_root = Path(__file__).resolve().parent
     config = load_config(config_path)
+    commit = code_commit(project_root)
     seed = int(config["experiment"]["seed"])
     seed_everything(seed, bool(config["training"]["deterministic"]))
     if not torch.cuda.is_available():
@@ -166,7 +151,7 @@ def train(config_path: Path) -> Path:
     output = project_root / config["tracking"]["output_root"] / config["experiment"]["name"] / run_id
     output.mkdir(parents=True, exist_ok=False)
     write_resolved_config(output / "config.resolved.yaml", config)
-    (output / "environment.json").write_text(json.dumps(environment_payload(), indent=2), encoding="utf-8")
+    (output / "environment.json").write_text(json.dumps(environment_payload(commit), indent=2), encoding="utf-8")
 
     train_csv = resolve_manifest(project_root, config["data"]["train_csv"])
     val_csv = resolve_manifest(project_root, config["data"]["val_csv"])
@@ -174,12 +159,25 @@ def train(config_path: Path) -> Path:
         if not manifest.exists():
             raise FileNotFoundError(manifest)
     split_artifact = {
-        "train": {"path": str(train_csv), "sha256": file_hash(train_csv)},
-        "validation": {"path": str(val_csv), "sha256": file_hash(val_csv)},
+        "train": {"path": str(train_csv), "sha256": sha256_file(train_csv)},
+        "validation": {"path": str(val_csv), "sha256": sha256_file(val_csv)},
         "test_loaded": False,
         "test_evaluated": False,
     }
     (output / "split_manifest.json").write_text(json.dumps(split_artifact, indent=2), encoding="utf-8")
+    signature, signature_fields = run_signature(
+        commit=commit,
+        config_hash=resolved_config_sha256(config),
+        train_hash=split_artifact["train"]["sha256"],
+        validation_hash=split_artifact["validation"]["sha256"],
+        protocol_version=config["data"]["protocol_version"],
+        checkpoint_policy=config["checkpoint"]["primary_policy"],
+        epochs=int(config["training"]["epochs"]),
+    )
+    (output / "run_signature.json").write_text(
+        json.dumps({"run_signature": signature, **signature_fields}, indent=2),
+        encoding="utf-8",
+    )
 
     train_data = ManifestDataset(train_csv, build_transforms(config, train=True))
     val_data = ManifestDataset(val_csv, build_transforms(config, train=False))
@@ -214,7 +212,7 @@ def train(config_path: Path) -> Path:
     accumulation = int(config["training"]["accumulation_steps"])
     dtype_name = config["training"]["amp_dtype"]
     scaler = torch.amp.GradScaler("cuda", enabled=dtype_name == "float16")
-    monitor = config["training"]["monitor"]
+    monitor = config["checkpoint"]["monitor"]
     best_value = -float("inf")
     metrics_path = output / "metrics.csv"
     mlflow, mlflow_run = maybe_start_mlflow(config, f"{config['experiment']['name']}/{run_id}")
@@ -256,24 +254,48 @@ def train(config_path: Path) -> Path:
                 mlflow.log_metrics({key: float(value) for key, value in row.items() if key != "epoch"}, step=epoch)
             if float(val_metrics[monitor]) > best_value:
                 best_value = float(val_metrics[monitor])
-                torch.save({"epoch": epoch, "model_state_dict": model.state_dict(), "optimizer_state_dict": optimizer.state_dict(), "monitor": monitor, "monitor_value": best_value, "config": config}, output / "best.pt")
+                torch.save({"epoch": epoch, "model_state_dict": model.state_dict(), "optimizer_state_dict": optimizer.state_dict(), "monitor": monitor, "monitor_value": best_value, "checkpoint_policy": "best_validation", "run_signature": signature, "config": config}, output / "best.pt")
                 (output / "val_metrics_best.json").write_text(json.dumps({"epoch": epoch, **val_metrics}, indent=2), encoding="utf-8")
                 write_predictions(output / "val_predictions_best.csv", labels, probs, ids, lesions, config["data"]["class_names"])
+            if epoch == int(config["training"]["epochs"]):
+                torch.save({
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "checkpoint_policy": "last",
+                    "config": config,
+                    "run_signature": signature,
+                }, output / "last.pt")
+                (output / "val_metrics_last.json").write_text(
+                    json.dumps({"epoch": epoch, **val_metrics}, indent=2), encoding="utf-8"
+                )
+                write_predictions(
+                    output / "val_predictions_last.csv", labels, probs, ids, lesions,
+                    config["data"]["class_names"],
+                )
         summary = {
             "status": "completed",
             "run_id": run_id,
             "best_epoch": json.loads((output / "val_metrics_best.json").read_text())["epoch"],
+            "epochs_completed": int(config["training"]["epochs"]),
+            "primary_checkpoint": "last.pt",
+            "secondary_checkpoint": "best.pt",
+            "checkpoint_policy": "last",
             "monitor": monitor,
             "best_monitor_value": best_value,
             "elapsed_seconds": time.monotonic() - started,
             "effective_batch_size": batch * accumulation,
             "test_evaluated": False,
+            "run_signature": signature,
+            "git_commit": commit,
+            "protocol_version": config["data"]["protocol_version"],
         }
         (output / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         if mlflow:
-            for artifact in ("config.resolved.yaml", "environment.json", "split_manifest.json", "class_counts.json", "model_initialization.json", "metrics.csv", "val_metrics_best.json", "val_predictions_best.csv", "summary.json"):
+            for artifact in ("config.resolved.yaml", "environment.json", "split_manifest.json", "run_signature.json", "class_counts.json", "model_initialization.json", "metrics.csv", "val_metrics_best.json", "val_predictions_best.csv", "val_metrics_last.json", "val_predictions_last.csv", "summary.json"):
                 mlflow.log_artifact(str(output / artifact))
             mlflow.set_tag("checkpoint_server_path", str(output / "best.pt"))
+            mlflow.set_tag("primary_checkpoint_server_path", str(output / "last.pt"))
     finally:
         if mlflow and mlflow_run:
             mlflow.end_run()

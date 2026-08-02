@@ -1,0 +1,38 @@
+protocol_version: stage2_locked_evaluation_v1
+seeds: [42, 43, 44]
+epochs: 50
+checkpoint_policy:
+  primary: last.pt
+  secondary: best.pt
+bootstrap:
+  repeats: 10000
+  unit: lesion
+  stratified_by_class: true
+primary_metric: mcc
+key_secondary_metric: balanced_accuracy
+additional_metrics: [macro_f1, macro_auroc, macro_auprc, nll, brier, ece, per_class_recall]
+arms:
+  stage2_monica_original_resnet50_ce:
+    protocol_version: monica_isic2019_lt_ir100_pinned_3dd808d6
+    train_sha256: c3b1583b6f5e6447be5d6ae99f99e1ffeb691dfb5a1d300eb0bee3d6e77a7a95
+    validation_sha256: 77420d33f801b28e214b718e87396d696e1af07419dcc106a296dd32edb42cac
+    test_manifest: data_splits/monica/ir100/test.csv
+    test_sha256: da58deebb81190960b995f78d058741bbeed6cc36dc2361ca2a6507131280177
+  stage2_monica_decontaminated_unmatched_resnet50_ce:
+    protocol_version: stage2_retrospective_contamination_v2_unmatched
+    train_sha256: 75d64c9fe5e5fc06c04b8563cf87be68f2f1f137df560fb6d58c03e7b17d994a
+    validation_sha256: 77420d33f801b28e214b718e87396d696e1af07419dcc106a296dd32edb42cac
+    test_manifest: data_splits/stage2/monica_causal/test_monica.csv
+    test_sha256: da58deebb81190960b995f78d058741bbeed6cc36dc2361ca2a6507131280177
+  stage2_monica_decontaminated_exposure_matched_resnet50_ce:
+    protocol_version: stage2_retrospective_contamination_v2_exposure_matched
+    train_sha256: 1c2d40d8e59437fa3741961ad682a497278de201685e6379b9a1adcfb359e1a9
+    validation_sha256: 77420d33f801b28e214b718e87396d696e1af07419dcc106a296dd32edb42cac
+    test_manifest: data_splits/stage2/monica_causal/test_monica.csv
+    test_sha256: da58deebb81190960b995f78d058741bbeed6cc36dc2361ca2a6507131280177
+  stage2_lesion_disjoint_ir100_resnet50_ce:
+    protocol_version: isic2019_lt_ir100_lesion_disjoint_v1
+    train_sha256: d4d87c59c079212b9a3f8bc9e10d3ec1bc5cca2420e6f4d8ba95f8a6e128d094
+    validation_sha256: ff12b7e4c4330f3520ff1780c31683a1eb8053ebb279f094cfd37f8da59a7054
+    test_manifest: data_splits/stage2/lesion_disjoint_ir100/test.csv
+    test_sha256: 30dc18e4aab921613d89f7bf82cf892ac7f7b244c361dfc6d613552850726703
