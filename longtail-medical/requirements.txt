@@ -1,8 +1,10 @@
-numpy==2.2.6
-pandas==2.3.1
-Pillow==11.3.0
-PyYAML==6.0.2
-scikit-learn==1.7.1
-torch==2.7.1
-torchvision==0.22.1
-mlflow==3.2.0
+# Server-qualified environment on 2026-08-02. The CUDA packages are provided
+# by the existing research image/venv and should not be reinstalled per run.
+numpy==2.5.1
+pandas==2.3.3
+Pillow==12.3.0
+PyYAML==6.0.3
+scikit-learn==1.9.0
+torch==2.12.1
+torchvision==0.27.1
+mlflow==3.14.0

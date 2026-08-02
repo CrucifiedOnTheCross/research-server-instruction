@@ -77,6 +77,11 @@ accumulation 2. This preserves effective batch size, not exact per-step batch
 statistics or bitwise equivalence. A server memory smoke test may qualify
 physical batch 256 before the definitive run.
 
+The existing server environment was qualified on 2026-08-02: PyTorch
+2.12.1+cu130, torchvision 0.27.1+cu130, scikit-learn 1.9.0, MLflow 3.14.0,
+and NVIDIA GeForce RTX 5080. The new package reuses this environment only as
+infrastructure; it does not import the previous project's code.
+
 ### BPaCo
 
 BPaCo is not a drop-in loss. It uses a momentum encoder, a feature queue,
