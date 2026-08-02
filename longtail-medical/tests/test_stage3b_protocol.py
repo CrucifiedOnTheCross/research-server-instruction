@@ -8,6 +8,7 @@ from longtail_medical.calibration import apply_temperature, fit_temperature
 from longtail_medical.config import load_config
 from tools.build_stage3b_splits import SPLIT_SEEDS
 from tools.run_stage3b_training_matrix import ARMS, MODEL_SEEDS, experiment_name
+from tools.sync_stage3b_mlflow import scalar_metrics
 
 
 class Stage3BProtocolTest(unittest.TestCase):
@@ -53,6 +54,10 @@ class Stage3BProtocolTest(unittest.TestCase):
         self.assertIn("--gpus all", script)
         self.assertIn("source '$RESEARCH_VENV/bin/activate'", script)
         self.assertNotIn("\nsource \"$RESEARCH_VENV/bin/activate\"", script)
+
+    def test_mlflow_sync_only_flattens_scalar_metrics(self):
+        metrics = scalar_metrics({"mcc": 0.5, "per_class": {"mel": {}}, "matrix": [[1]]}, "test")
+        self.assertEqual(metrics, {"test/mcc": 0.5})
 
 
 if __name__ == "__main__":
