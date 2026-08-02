@@ -19,6 +19,71 @@ SEEDS = (42, 43, 44)
 SOURCE_ARM = "stage3a_ce_resnet50_lesion_disjoint"
 
 
+def scalar_metrics(payload: dict, prefix: str = "") -> dict[str, float]:
+    flattened = {}
+    for key, value in payload.items():
+        name = f"{prefix}/{key}" if prefix else key
+        if isinstance(value, dict):
+            flattened.update(scalar_metrics(value, name))
+        elif isinstance(value, (int, float)) and key != "epoch":
+            flattened[name] = float(value)
+    return flattened
+
+
+def sync_mlflow(config: dict, destination: Path, summary: dict, checkpoint_results: dict) -> None:
+    """Create one idempotent lightweight MLflow run for a derived result."""
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+
+        mlflow.set_tracking_uri(config["tracking"]["mlflow_tracking_uri"])
+        experiment = mlflow.set_experiment(config["tracking"]["mlflow_experiment"])
+        client = MlflowClient()
+        signature = summary["source_run_signature"]
+        existing = client.search_runs(
+            [experiment.experiment_id],
+            filter_string=(
+                f"tags.source_run_signature = '{signature}' and "
+                "tags.stage = 'stage3a_logit_adjustment'"
+            ),
+            max_results=2,
+        )
+        if existing:
+            return
+        tags = {
+            **{str(key): str(value) for key, value in config["tracking"]["tags"].items()},
+            "stage": "stage3a_logit_adjustment",
+            "experiment_arm": "logit_adjustment_tau1",
+            "method": "posthoc_logit_adjustment",
+            "seed": str(summary["seed"]),
+            "source_run_signature": signature,
+            "test_evaluated": "false",
+            "selection_data": "validation_only",
+        }
+        with mlflow.start_run(
+            experiment_id=experiment.experiment_id,
+            run_name=f"stage3a_logit_adjustment_tau1/seed_{summary['seed']}",
+            tags=tags,
+        ):
+            mlflow.log_params({
+                "tau": TAU,
+                "source_checkpoint_policy": summary["source_checkpoint_policy"],
+                "derived_without_training": True,
+            })
+            for checkpoint, payload in checkpoint_results.items():
+                mlflow.log_metrics(scalar_metrics(payload, checkpoint))
+            for artifact in (
+                "summary.json",
+                "val_metrics_last.json",
+                "val_predictions_last.csv",
+                "val_metrics_best.json",
+                "val_predictions_best.csv",
+            ):
+                mlflow.log_artifact(str(destination / artifact))
+    except Exception as error:
+        print(f"MLflow sync disabled for {destination}: {error}")
+
+
 def write_predictions(path: Path, labels, probabilities, image_ids, lesion_ids, class_names):
     with path.open("w", newline="", encoding="utf-8") as handle:
         fields = ["image_id", "lesion_id", "label", "prediction"] + [f"prob_{name}" for name in class_names]
@@ -94,7 +159,7 @@ def main() -> None:
             )
             checkpoint_results[checkpoint] = payload
         source_summary = json.loads((source / "summary.json").read_text(encoding="utf-8"))
-        (destination / "summary.json").write_text(json.dumps({
+        derived_summary = {
             "status": "completed",
             "method": "posthoc_logit_adjustment",
             "tau": TAU,
@@ -105,7 +170,11 @@ def main() -> None:
             "test_loaded": False,
             "test_evaluated": False,
             "selection_data": "validation_only",
-        }, indent=2), encoding="utf-8")
+        }
+        (destination / "summary.json").write_text(
+            json.dumps(derived_summary, indent=2), encoding="utf-8"
+        )
+        sync_mlflow(config, destination, derived_summary, checkpoint_results)
     print(json.dumps({"completed_seeds": list(SEEDS), "tau": TAU, "test_evaluated": False}, indent=2))
 
 
