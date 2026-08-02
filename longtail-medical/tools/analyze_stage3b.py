@@ -12,6 +12,7 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
+from sklearn.metrics import average_precision_score, precision_recall_fscore_support, roc_auc_score, roc_curve
 
 from longtail_medical.statistical_analysis import aggregate_by_lesion, fast_mcc_balanced_accuracy
 
@@ -26,10 +27,35 @@ def read_predictions(path: Path) -> dict:
         rows = list(csv.DictReader(handle))
     labels = np.asarray([int(row["label"]) for row in rows])
     probabilities = np.asarray([[float(row[f"prob_{name}"]) for name in CLASS_NAMES] for row in rows])
+    probabilities = probabilities / probabilities.sum(axis=1, keepdims=True)
     image_ids = [row["image_id"] for row in rows]
     lesion_ids = [row["lesion_id"] for row in rows]
     lesion_labels, lesion_probabilities, ordered_ids = aggregate_by_lesion(labels, probabilities, lesion_ids, image_ids)
     return {"labels": lesion_labels, "probabilities": lesion_probabilities, "ids": ordered_ids}
+
+
+def class_diagnostics(labels: np.ndarray, probabilities: np.ndarray) -> dict[str, dict[str, float]]:
+    predictions = probabilities.argmax(axis=1)
+    precision, recall, f1, support = precision_recall_fscore_support(
+        labels, predictions, labels=range(len(CLASS_NAMES)), zero_division=0
+    )
+    one_hot = np.eye(len(CLASS_NAMES), dtype=np.int64)[labels]
+    auprc = average_precision_score(one_hot, probabilities, average=None)
+    auroc = roc_auc_score(one_hot, probabilities, average=None, multi_class="ovr")
+    output = {}
+    for index, name in enumerate(CLASS_NAMES):
+        binary = (labels == index).astype(np.int64)
+        fpr, tpr, _ = roc_curve(binary, probabilities[:, index])
+        fixed = {}
+        for specificity in (0.90, 0.95):
+            candidates = tpr[fpr <= 1.0 - specificity + 1e-12]
+            fixed[f"sensitivity_at_specificity_{int(specificity * 100)}"] = float(candidates.max()) if candidates.size else 0.0
+        output[name] = {
+            "precision": float(precision[index]), "recall": float(recall[index]),
+            "f1": float(f1[index]), "auprc": float(auprc[index]),
+            "auroc": float(auroc[index]), "support": int(support[index]), **fixed,
+        }
+    return output
 
 
 def path_for(root: Path, variant: str, split_seed: int, model_seed: int, checkpoint: str) -> Path:
@@ -85,6 +111,10 @@ def main() -> None:
     if not locked.get("one_shot") or not locked.get("test_evaluated"):
         raise RuntimeError("Locked evaluation is incomplete")
     records = locked["records"]
+    record_lookup = {
+        (record["variant"] if record["variant"] != "raw" else record["arm"], record["checkpoint"], int(record["split_seed"]), int(record["model_seed"])): record
+        for record in records
+    }
     summary = defaultdict(lambda: defaultdict(list))
     for record in records:
         key = record["variant"] if record["variant"] != "raw" else record["arm"]
@@ -97,6 +127,64 @@ def main() -> None:
         "/".join(key): {metric: mean_std(values) for metric, values in metrics.items()}
         for key, metrics in summary.items()
     }
+    paired_comparisons = {}
+    for name, treatment, control in (
+        ("ldam_drw_minus_ce", "ldam_drw", "ce"),
+        ("logit_adjustment_minus_ce", "logit_adjustment_tau1", "ce"),
+        ("temperature_scaled_minus_ldam_raw", "temperature_scaled", "ldam_drw"),
+    ):
+        comparison = {"overall": {}, "by_split": {}}
+        for metric in ("mcc", "balanced_accuracy", "macro_f1", "macro_auprc", "macro_auroc", "ece", "nll", "brier", "worst_class_recall"):
+            values = []
+            by_split = {}
+            for split_seed in SPLIT_SEEDS:
+                split_values = [
+                    float(record_lookup[(treatment, "last", split_seed, model_seed)]["lesion"][metric])
+                    - float(record_lookup[(control, "last", split_seed, model_seed)]["lesion"][metric])
+                    for model_seed in MODEL_SEEDS
+                ]
+                by_split[str(split_seed)] = mean_std(split_values)
+                values.extend(split_values)
+            comparison["overall"][metric] = {
+                **mean_std(values), "positive_pairs": int(np.sum(np.asarray(values) > 0)),
+            }
+            comparison["by_split"][metric] = by_split
+        paired_comparisons[name] = comparison
+
+    per_class = {}
+    prediction_cache = {}
+    diagnostics_cache = {}
+    for variant in ("ce", "ldam_drw", "logit_adjustment_tau1", "temperature_scaled"):
+        per_class[variant] = {}
+        rows_by_class = defaultdict(list)
+        for split_seed in SPLIT_SEEDS:
+            for model_seed in MODEL_SEEDS:
+                item = read_predictions(path_for(root, variant, split_seed, model_seed, "last"))
+                prediction_cache[(variant, split_seed, model_seed)] = item
+                diagnostics = class_diagnostics(item["labels"], item["probabilities"])
+                diagnostics_cache[(variant, split_seed, model_seed)] = diagnostics
+                for class_name, values in diagnostics.items():
+                    rows_by_class[class_name].append(values)
+        for class_name, rows in rows_by_class.items():
+            per_class[variant][class_name] = {
+                metric: mean_std([row[metric] for row in rows])
+                for metric in rows[0] if metric != "support"
+            }
+            per_class[variant][class_name]["support_per_run"] = rows[0]["support"]
+
+    per_class_ldam_delta = {}
+    for class_name in CLASS_NAMES:
+        per_class_ldam_delta[class_name] = {}
+        for metric in ("precision", "recall", "f1", "auprc", "auroc", "sensitivity_at_specificity_90", "sensitivity_at_specificity_95"):
+            values = []
+            for split_seed in SPLIT_SEEDS:
+                for model_seed in MODEL_SEEDS:
+                    ldam = diagnostics_cache[("ldam_drw", split_seed, model_seed)][class_name][metric]
+                    ce = diagnostics_cache[("ce", split_seed, model_seed)][class_name][metric]
+                    values.append(ldam - ce)
+            per_class_ldam_delta[class_name][metric] = {
+                **mean_std(values), "positive_pairs": int(np.sum(np.asarray(values) > 0)),
+            }
     pairs = {}
     split_deltas = defaultdict(list)
     model_deltas = defaultdict(list)
@@ -124,6 +212,9 @@ def main() -> None:
         "protocol": "stage3b_split_model_lesion_hierarchical",
         "git_commit": locked["git_commit"], "primary_checkpoint": "last",
         "primary_comparison": "ldam_drw_minus_ce", "records": compact,
+        "paired_comparisons_last_lesion": paired_comparisons,
+        "per_class_last_lesion": per_class,
+        "per_class_ldam_minus_ce_last_lesion": per_class_ldam_delta,
         "paired_delta_mcc_by_split": {key: mean_std(value) for key, value in split_deltas.items()},
         "paired_delta_mcc_by_model_seed": {key: mean_std(value) for key, value in model_deltas.items()},
         "hierarchical_bootstrap": bootstrap, "test_evaluated_once": True,
