@@ -2,10 +2,21 @@ import unittest
 
 import numpy as np
 
-from longtail_medical.statistical_analysis import aggregate_by_lesion
+from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
+
+from longtail_medical.statistical_analysis import aggregate_by_lesion, fast_mcc_balanced_accuracy
 
 
 class StatisticalAnalysisTest(unittest.TestCase):
+    def test_fast_bootstrap_metrics_match_sklearn(self):
+        labels = np.asarray([0, 0, 1, 1, 2, 2, 2])
+        predictions = np.asarray([0, 1, 1, 1, 2, 0, 2])
+        actual = fast_mcc_balanced_accuracy(labels, predictions, num_classes=3)
+        self.assertAlmostEqual(actual["mcc"], matthews_corrcoef(labels, predictions))
+        self.assertAlmostEqual(
+            actual["balanced_accuracy"], balanced_accuracy_score(labels, predictions)
+        )
+
     def test_lesion_probabilities_are_mean_aggregated(self):
         labels = np.array([0, 0, 1])
         probabilities = np.array([[0.8, 0.2], [0.6, 0.4], [0.1, 0.9]])

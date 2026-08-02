@@ -13,6 +13,14 @@ These tags are observability metadata only and do not change data, optimization,
 random seeds, checkpoints, or metric computation. Existing runs can be updated
 idempotently with `tools/backfill_mlflow_tags.py`; checkpoints are not uploaded.
 
+The one-shot locked-test inference persisted all 24 prediction sets (12 runs,
+`last.pt` and `best.pt`) before the original scalar bootstrap stalled. The test
+was not reopened. Statistical analysis is resumed exclusively from those immutable
+prediction CSV files. Bootstrap target metrics now use a confusion-matrix-only
+implementation for MCC and balanced accuracy instead of recalculating unrelated
+AUROC, AUPRC, NLL, Brier score, and ECE on every resample. A regression test checks
+numerical equivalence with scikit-learn.
+
 The generated strict protocol contains exactly 10,322/400/800 images and has
 zero lesion overlap for train-validation, train-test, and validation-test.
 For the retrospective controlled audit, 673 train images are removed. Of these, 620 can be

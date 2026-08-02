@@ -7,6 +7,34 @@ import numpy as np
 from longtail_medical.metrics import classification_metrics
 
 
+def fast_mcc_balanced_accuracy(labels, predictions, num_classes: int) -> dict[str, float]:
+    """Compute bootstrap target metrics without unrelated ranking metrics."""
+    labels = np.asarray(labels, dtype=np.int64)
+    predictions = np.asarray(predictions, dtype=np.int64)
+    matrix = np.bincount(
+        labels * num_classes + predictions,
+        minlength=num_classes * num_classes,
+    ).reshape(num_classes, num_classes)
+    true_sum = matrix.sum(axis=1, dtype=np.float64)
+    pred_sum = matrix.sum(axis=0, dtype=np.float64)
+    correct = float(np.trace(matrix))
+    total = float(matrix.sum())
+    recalls = np.divide(
+        np.diag(matrix), true_sum,
+        out=np.full(num_classes, np.nan, dtype=np.float64),
+        where=true_sum != 0,
+    )
+    numerator = correct * total - float(np.dot(true_sum, pred_sum))
+    denominator = np.sqrt(
+        (total * total - float(np.dot(pred_sum, pred_sum)))
+        * (total * total - float(np.dot(true_sum, true_sum)))
+    )
+    return {
+        "mcc": float(numerator / denominator) if denominator else 0.0,
+        "balanced_accuracy": float(np.nanmean(recalls)),
+    }
+
+
 def aggregate_by_lesion(labels, probabilities, lesion_ids, image_ids):
     groups: dict[str, list[int]] = defaultdict(list)
     for index, (lesion_id, image_id) in enumerate(zip(lesion_ids, image_ids)):
@@ -41,8 +69,12 @@ def paired_lesion_stratified_bootstrap(
             for draw in draws:
                 sampled_indices.extend(lesion_groups[int(draw)])
         sampled = np.asarray(sampled_indices)
-        metrics_a = classification_metrics(labels[sampled], probabilities_a[sampled], class_names)
-        metrics_b = classification_metrics(labels[sampled], probabilities_b[sampled], class_names)
+        metrics_a = fast_mcc_balanced_accuracy(
+            labels[sampled], np.asarray(probabilities_a)[sampled].argmax(axis=1), len(class_names)
+        )
+        metrics_b = fast_mcc_balanced_accuracy(
+            labels[sampled], np.asarray(probabilities_b)[sampled].argmax(axis=1), len(class_names)
+        )
         for metric in effects:
             effects[metric].append(metrics_a[metric] - metrics_b[metric])
     return {
@@ -86,11 +118,12 @@ def lesion_stratified_metric_bootstrap(
                 lesion_labels.append(label)
                 lesion_probabilities.append(probabilities[indices].mean(axis=0))
         image_indices_array = np.asarray(image_indices)
-        image_metrics = classification_metrics(
-            labels[image_indices_array], probabilities[image_indices_array], class_names
+        image_metrics = fast_mcc_balanced_accuracy(
+            labels[image_indices_array], probabilities[image_indices_array].argmax(axis=1), len(class_names)
         )
-        lesion_metrics = classification_metrics(
-            np.asarray(lesion_labels), np.asarray(lesion_probabilities), class_names
+        lesion_probabilities_array = np.asarray(lesion_probabilities)
+        lesion_metrics = fast_mcc_balanced_accuracy(
+            np.asarray(lesion_labels), lesion_probabilities_array.argmax(axis=1), len(class_names)
         )
         for metric in ("mcc", "balanced_accuracy"):
             distributions["image_level"][metric].append(image_metrics[metric])
