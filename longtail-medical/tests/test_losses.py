@@ -35,15 +35,17 @@ class LongTailLossTest(unittest.TestCase):
             "method": "ldam_drw", "beta": 0.9999, "max_margin": 0.5,
             "scale": 30.0, "drw_start_epoch": 40,
         }, self.counts)
-        before = objective(self.logits, self.targets, epoch=40)
-        after = objective(self.logits, self.targets, epoch=41)
+        ambiguous_logits = torch.zeros(3, 3)
+        imbalanced_targets = torch.tensor([0, 0, 2])
+        before = objective(ambiguous_logits, imbalanced_targets, epoch=40)
+        after = objective(ambiguous_logits, imbalanced_targets, epoch=41)
         self.assertFalse(torch.allclose(before, after))
         self.assertAlmostEqual(float(objective.margins[-1]), 0.5, places=6)
 
     def test_normed_linear_output_is_cosine_bounded(self):
         layer = NormedLinear(4, 3)
         output = layer(torch.randn(5, 4))
-        self.assertLessEqual(float(output.abs().max()), 1.000001)
+        self.assertLessEqual(float(output.detach().abs().max()), 1.000001)
 
 
 if __name__ == "__main__":
