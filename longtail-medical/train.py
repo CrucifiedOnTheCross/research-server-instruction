@@ -158,6 +158,7 @@ def maybe_start_mlflow(
         )
         mlflow.log_params({
             "seed": config["experiment"]["seed"],
+            "split_seed": config.get("data", {}).get("split_seed", "not_applicable"),
             "model": config["model"]["name"],
             "epochs": config["training"]["epochs"],
             "physical_batch_size": config["training"]["physical_batch_size"],

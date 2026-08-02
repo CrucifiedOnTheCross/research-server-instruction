@@ -37,6 +37,19 @@ class TrackingTagsTest(unittest.TestCase):
         self.assertEqual(tags["git_commit"], "abc")
         self.assertEqual(tags["run_signature"], "signature")
 
+    def test_stage3b_has_separate_split_and_model_seed_tags(self):
+        config = {
+            "experiment": {"name": "stage3b_ldam_drw_resnet50_split202", "seed": 44},
+            "data": {"protocol_version": "stage3b", "split_seed": 202},
+            "model": {"name": "resnet50"},
+            "checkpoint": {"primary_policy": "last"},
+            "tracking": {"tags": {"stage": "stage3b_confirmation"}},
+        }
+        tags = build_mlflow_tags(config)
+        self.assertEqual(tags["experiment_arm"], "ldam_drw_resnet50_split202")
+        self.assertEqual(tags["split_seed"], "202")
+        self.assertEqual(tags["model_seed"], "44")
+
 
 if __name__ == "__main__":
     unittest.main()

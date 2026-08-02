@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 
 def experiment_arm(name: str) -> str:
-    for prefix in ("stage3a_", "stage2_", "stage1_"):
+    for prefix in ("stage3b_", "stage3a_", "stage2_", "stage1_"):
         if name.startswith(prefix):
             return name[len(prefix):]
     return name
@@ -51,6 +51,9 @@ def build_mlflow_tags(
         tags["git_commit"] = git_commit
     if run_signature:
         tags["run_signature"] = run_signature
+    if "split_seed" in config.get("data", {}):
+        tags["split_seed"] = str(config["data"]["split_seed"])
+        tags["model_seed"] = str(config["experiment"]["seed"])
     return tags
 
 

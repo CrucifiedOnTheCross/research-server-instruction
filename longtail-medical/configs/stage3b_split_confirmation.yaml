@@ -1,0 +1,71 @@
+experiment:
+  name: stage3b_ce_resnet50_split101
+  seed: 42
+
+data:
+  protocol_version: isic2019_lt_ir100_lesion_disjoint_v2_stage3b_split101
+  split_seed: 101
+  root: /srv/research/projects/default/isic2019
+  train_csv: data_splits/stage3b/split_101/train.csv
+  val_csv: data_splits/stage3b/split_101/val.csv
+  image_size: 224
+  resize_size: 264
+  num_classes: 8
+  class_names: [nv, mel, bcc, bkl, ak, scc, vasc, df]
+
+model:
+  name: resnet50
+  pretrained: true
+
+loss:
+  method: cross_entropy
+  gamma: 2.0
+  beta: 0.9999
+  max_margin: 0.5
+  scale: 30.0
+  drw_start_epoch: 40
+
+training:
+  epochs: 50
+  physical_batch_size: 256
+  accumulation_steps: 1
+  num_workers: 12
+  optimizer: adam
+  learning_rate: 0.0003
+  weight_decay: 0.0
+  amp_dtype: bfloat16
+  channels_last: true
+  deterministic: true
+  monitor: lesion_mcc
+  monitor_mode: max
+
+checkpoint:
+  primary_policy: last
+  secondary_policy: best_validation
+  monitor: lesion_mcc
+
+augmentation:
+  train:
+    random_crop: true
+    horizontal_flip: true
+    vertical_flip: true
+    rotation_degrees: 10
+    color_jitter: [0.2, 0.2, 0.2, 0.2]
+  validation:
+    center_crop: true
+
+evaluation:
+  run_test: false
+  ece_bins: 15
+
+tracking:
+  output_root: outputs/stage3b_confirmation
+  mlflow_tracking_uri: http://10.200.1.180:5000
+  mlflow_experiment: ISIC2019-LT Stage3B Split Confirmation
+  tags:
+    project: longtail-medical
+    stage: stage3b_confirmation
+    dataset: ISIC2019-LT
+    split_policy: lesion_disjoint
+    task: multiclass_skin_lesion_classification
+    test_policy: one_shot_after_readiness

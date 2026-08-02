@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NAME="${NAME:-longtail-stage3b-confirmation}"
+IMAGE="${IMAGE:-local/research-cuda-notebook:latest}"
+PROJECT_ROOT="${PROJECT_ROOT:-/srv/research/projects/default}"
+WORKDIR="$PROJECT_ROOT/longtail-medical"
+RESEARCH_VENV="${RESEARCH_VENV:-$PROJECT_ROOT/research-ml/.venv}"
+USER_SPEC="${USER_SPEC:-1000:1006}"
+GROUP_ID="${GROUP_ID:-1006}"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+CODE_COMMIT="${CODE_COMMIT:-$(cat "$WORKDIR/.code-version")}" 
+
+mkdir -p "$WORKDIR/server-logs" "$WORKDIR/.cache/torch"
+docker rm -f "$NAME" >/dev/null 2>&1 || true
+docker run -d \
+  --name "$NAME" --shm-size=24g --gpus all \
+  --user "$USER_SPEC" --group-add "$GROUP_ID" \
+  -v "$PROJECT_ROOT:$PROJECT_ROOT" -w "$WORKDIR" \
+  -e "PYTHONPATH=$WORKDIR/src:$WORKDIR" -e "CODE_COMMIT=$CODE_COMMIT" \
+  -e "TORCH_HOME=$WORKDIR/.cache/torch" \
+  -e "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True" \
+  -e "OMP_NUM_THREADS=24" -e "MKL_NUM_THREADS=24" \
+  "$IMAGE" bash -lc "source '$RESEARCH_VENV/bin/activate' && set -o pipefail && python tools/run_stage3b_training_matrix.py && python tools/run_stage3b_validation_derivations.py && python tools/check_stage3b_readiness.py 2>&1 | tee 'server-logs/stage3b_$STAMP.log'"
+
+echo "Container: $NAME"
+echo "Structured results: $WORKDIR/outputs/stage3b_confirmation"
+echo "MLflow: http://10.200.1.180:5000"
