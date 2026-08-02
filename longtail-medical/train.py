@@ -23,6 +23,7 @@ from longtail_medical.config import load_config, write_resolved_config
 from longtail_medical.data import ManifestDataset, build_transforms
 from longtail_medical.metrics import classification_metrics
 from longtail_medical.provenance import code_commit, resolved_config_sha256, run_signature, sha256_file
+from longtail_medical.tracking import build_mlflow_tags
 
 
 def seed_everything(seed: int, deterministic: bool) -> None:
@@ -117,13 +118,26 @@ def write_predictions(path: Path, labels, probabilities, image_ids, lesion_ids, 
             })
 
 
-def maybe_start_mlflow(config: dict, run_name: str):
+def maybe_start_mlflow(
+    config: dict,
+    run_name: str,
+    *,
+    git_commit: str,
+    run_signature_value: str,
+):
     try:
         import mlflow
 
         mlflow.set_tracking_uri(config["tracking"]["mlflow_tracking_uri"])
         mlflow.set_experiment(config["tracking"]["mlflow_experiment"])
-        run = mlflow.start_run(run_name=run_name)
+        run = mlflow.start_run(
+            run_name=run_name,
+            tags=build_mlflow_tags(
+                config,
+                git_commit=git_commit,
+                run_signature=run_signature_value,
+            ),
+        )
         mlflow.log_params({
             "seed": config["experiment"]["seed"],
             "model": config["model"]["name"],
@@ -215,7 +229,12 @@ def train(config_path: Path) -> Path:
     monitor = config["checkpoint"]["monitor"]
     best_value = -float("inf")
     metrics_path = output / "metrics.csv"
-    mlflow, mlflow_run = maybe_start_mlflow(config, f"{config['experiment']['name']}/{run_id}")
+    mlflow, mlflow_run = maybe_start_mlflow(
+        config,
+        f"{config['experiment']['name']}/{run_id}",
+        git_commit=commit,
+        run_signature_value=signature,
+    )
     started = time.monotonic()
     try:
         for epoch in range(1, int(config["training"]["epochs"]) + 1):

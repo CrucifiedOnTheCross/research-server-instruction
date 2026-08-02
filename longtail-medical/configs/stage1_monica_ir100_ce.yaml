@@ -54,3 +54,8 @@ tracking:
   output_root: outputs/stage1
   mlflow_tracking_uri: http://10.200.1.180:5000
   mlflow_experiment: ISIC2019-LT Stage1
+  tags:
+    project: longtail-medical
+    stage: stage1_baseline
+    dataset: ISIC2019
+    task: multiclass_skin_lesion_classification

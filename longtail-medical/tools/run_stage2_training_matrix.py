@@ -101,6 +101,7 @@ def main() -> None:
             config["data"]["protocol_version"] = protocol_version
             config["tracking"]["output_root"] = "outputs/stage2_confirmatory"
             config["tracking"]["mlflow_experiment"] = "ISIC2019-LT Stage2 Confirmatory"
+            config["tracking"]["tags"]["stage"] = "stage2_confirmatory"
             config["evaluation"]["run_test"] = False
             signature = expected_signature(project, config, commit)
             if completed(project, experiment, seed, signature):

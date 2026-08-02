@@ -4,6 +4,15 @@ Date: 2026-08-02
 Status: preregistered before opening MONICA test  
 Current test state: closed
 
+## MLflow grouping metadata
+
+Runs are grouped with stable MLflow tags: `project`, `stage`, `dataset`, `task`,
+`experiment_arm`, `contamination_policy`, `protocol_version`, `seed`, `model`,
+`checkpoint_policy`, `git_commit`, `run_signature`, and `test_evaluated`.
+These tags are observability metadata only and do not change data, optimization,
+random seeds, checkpoints, or metric computation. Existing runs can be updated
+idempotently with `tools/backfill_mlflow_tags.py`; checkpoints are not uploaded.
+
 The generated strict protocol contains exactly 10,322/400/800 images and has
 zero lesion overlap for train-validation, train-test, and validation-test.
 For the retrospective controlled audit, 673 train images are removed. Of these, 620 can be
