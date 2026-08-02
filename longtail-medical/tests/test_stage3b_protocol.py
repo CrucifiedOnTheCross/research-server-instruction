@@ -46,6 +46,14 @@ class Stage3BProtocolTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply_temperature(np.asarray([[0.5, 0.5]]), 0.0)
 
+    def test_locked_analysis_runs_inside_qualified_container(self):
+        project = Path(__file__).resolve().parents[1]
+        script = (project / "scripts/run_stage3b_locked_analysis.sh").read_text(encoding="utf-8")
+        self.assertIn("docker run --rm", script)
+        self.assertIn("--gpus all", script)
+        self.assertIn("source '$RESEARCH_VENV/bin/activate'", script)
+        self.assertNotIn("\nsource \"$RESEARCH_VENV/bin/activate\"", script)
+
 
 if __name__ == "__main__":
     unittest.main()
