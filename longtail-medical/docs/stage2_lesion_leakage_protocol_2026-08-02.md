@@ -1,8 +1,9 @@
 # Stage 2: lesion leakage and strict generalization protocol
 
 Date: 2026-08-02  
-Status: preregistered before opening MONICA test  
-Current test state: closed
+Status: Stage 2 completed
+Test state: opened once for preregistered confirmatory inference; now
+permanently closed. All further analyses use immutable prediction files.
 
 ## MLflow grouping metadata
 

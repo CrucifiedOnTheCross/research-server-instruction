@@ -21,8 +21,10 @@ from torchvision.models import ResNet50_Weights, resnet50
 
 from longtail_medical.config import load_config, write_resolved_config
 from longtail_medical.data import ManifestDataset, build_transforms
+from longtail_medical.losses import LongTailObjective, NormedLinear, prediction_scale
 from longtail_medical.metrics import classification_metrics
 from longtail_medical.provenance import code_commit, resolved_config_sha256, run_signature, sha256_file
+from longtail_medical.statistical_analysis import aggregate_by_lesion
 from longtail_medical.tracking import build_mlflow_tags, namespace_epoch_metrics
 
 
@@ -79,7 +81,10 @@ def autocast_context(device: torch.device, dtype_name: str):
 
 
 @torch.inference_mode()
-def evaluate(model, loader, device, dtype_name: str, class_names: list[str], ece_bins: int):
+def evaluate(
+    model, loader, device, dtype_name: str, class_names: list[str], ece_bins: int,
+    logit_scale: float = 1.0,
+):
     model.eval()
     labels, probabilities, image_ids, lesion_ids = [], [], [], []
     loss_sum = 0.0
@@ -90,17 +95,30 @@ def evaluate(model, loader, device, dtype_name: str, class_names: list[str], ece
             images = images.contiguous(memory_format=torch.channels_last)
         with autocast_context(device, dtype_name):
             logits = model(images)
-            loss = F.cross_entropy(logits, target)
+            predictive_logits = logits * logit_scale
+            loss = F.cross_entropy(predictive_logits, target)
         loss_sum += float(loss) * len(target)
         labels.append(target.cpu().numpy())
-        probabilities.append(torch.softmax(logits.float(), dim=1).cpu().numpy())
+        probabilities.append(torch.softmax(predictive_logits.float(), dim=1).cpu().numpy())
         image_ids.extend(batch_ids)
         lesion_ids.extend(batch_lesions)
     labels_array = np.concatenate(labels)
     probability_array = np.concatenate(probabilities)
-    metrics = classification_metrics(labels_array, probability_array, class_names, ece_bins)
-    metrics["loss"] = loss_sum / len(labels_array)
-    return metrics, labels_array, probability_array, image_ids, lesion_ids
+    image_metrics = classification_metrics(labels_array, probability_array, class_names, ece_bins)
+    image_metrics["loss"] = loss_sum / len(labels_array)
+    lesion_labels, lesion_probabilities, _ = aggregate_by_lesion(
+        labels_array, probability_array, lesion_ids, image_ids
+    )
+    lesion_metrics = classification_metrics(
+        lesion_labels, lesion_probabilities, class_names, ece_bins
+    )
+    metrics = {
+        **{key: value for key, value in image_metrics.items() if isinstance(value, (int, float))},
+        **{f"image_{key}": value for key, value in image_metrics.items() if isinstance(value, (int, float))},
+        **{f"lesion_{key}": value for key, value in lesion_metrics.items() if isinstance(value, (int, float))},
+    }
+    payload = {"image": image_metrics, "lesion": lesion_metrics}
+    return metrics, payload, labels_array, probability_array, image_ids, lesion_ids
 
 
 def write_predictions(path: Path, labels, probabilities, image_ids, lesion_ids, class_names):
@@ -145,6 +163,13 @@ def maybe_start_mlflow(
             "physical_batch_size": config["training"]["physical_batch_size"],
             "accumulation_steps": config["training"]["accumulation_steps"],
             "test_evaluated": False,
+            "loss_method": config.get("loss", {}).get("method", "cross_entropy"),
+            "checkpoint_monitor": config["checkpoint"]["monitor"],
+            "loss_gamma": config.get("loss", {}).get("gamma", 0.0),
+            "loss_beta": config.get("loss", {}).get("beta", 0.0),
+            "ldam_max_margin": config.get("loss", {}).get("max_margin", 0.0),
+            "ldam_scale": config.get("loss", {}).get("scale", 1.0),
+            "drw_start_epoch": config.get("loss", {}).get("drw_start_epoch", 0),
         })
         return mlflow, run
     except Exception as error:
@@ -208,7 +233,14 @@ def train(config_path: Path) -> Path:
     val_loader = make_loader(val_data, batch, workers, False, seed)
     weights = ResNet50_Weights.IMAGENET1K_V2 if config["model"]["pretrained"] else None
     model = resnet50(weights=weights)
-    model.fc = torch.nn.Linear(model.fc.in_features, int(config["data"]["num_classes"]))
+    classifier_input = model.fc.in_features
+    loss_config = config.get("loss", {"method": "cross_entropy"})
+    if loss_config.get("method") == "ldam_drw":
+        model.fc = NormedLinear(classifier_input, int(config["data"]["num_classes"]))
+        classifier_type = "cosine_normed_linear"
+    else:
+        model.fc = torch.nn.Linear(classifier_input, int(config["data"]["num_classes"]))
+        classifier_type = "linear"
     model = model.to(device)
     if config["training"]["channels_last"]:
         model = model.to(memory_format=torch.channels_last)
@@ -216,12 +248,19 @@ def train(config_path: Path) -> Path:
         "architecture": "torchvision.resnet50",
         "weights": str(weights),
         "classifier_randomly_initialized": True,
+        "classifier_type": classifier_type,
+        "prediction_logit_scale": prediction_scale(loss_config),
         "parameter_count": sum(parameter.numel() for parameter in model.parameters()),
     }
     (output / "model_initialization.json").write_text(json.dumps(initialization, indent=2), encoding="utf-8")
     optimizer = torch.optim.Adam(
         model.parameters(), lr=float(config["training"]["learning_rate"]),
         weight_decay=float(config["training"]["weight_decay"])
+    )
+    ordered_counts = [counts.get(index, 0) for index in range(int(config["data"]["num_classes"]))]
+    objective = LongTailObjective(loss_config, ordered_counts).to(device)
+    (output / "loss_initialization.json").write_text(
+        json.dumps(objective.metadata(), indent=2), encoding="utf-8"
     )
     accumulation = int(config["training"]["accumulation_steps"])
     dtype_name = config["training"]["amp_dtype"]
@@ -246,7 +285,7 @@ def train(config_path: Path) -> Path:
                 images = images.to(device, non_blocking=True).contiguous(memory_format=torch.channels_last)
                 target = target.to(device, non_blocking=True)
                 with autocast_context(device, dtype_name):
-                    loss = F.cross_entropy(model(images), target)
+                    loss = objective(model(images), target, epoch)
                     scaled_loss = loss / accumulation
                 scaler.scale(scaled_loss).backward()
                 if step % accumulation == 0 or step == len(train_loader):
@@ -254,8 +293,9 @@ def train(config_path: Path) -> Path:
                     scaler.update()
                     optimizer.zero_grad(set_to_none=True)
                 loss_sum += float(loss) * len(target)
-            val_metrics, labels, probs, ids, lesions = evaluate(
-                model, val_loader, device, dtype_name, config["data"]["class_names"], int(config["evaluation"]["ece_bins"])
+            val_metrics, val_payload, labels, probs, ids, lesions = evaluate(
+                model, val_loader, device, dtype_name, config["data"]["class_names"],
+                int(config["evaluation"]["ece_bins"]), prediction_scale(loss_config),
             )
             row = {
                 "epoch": epoch,
@@ -274,7 +314,10 @@ def train(config_path: Path) -> Path:
             if float(val_metrics[monitor]) > best_value:
                 best_value = float(val_metrics[monitor])
                 torch.save({"epoch": epoch, "model_state_dict": model.state_dict(), "optimizer_state_dict": optimizer.state_dict(), "monitor": monitor, "monitor_value": best_value, "checkpoint_policy": "best_validation", "run_signature": signature, "config": config}, output / "best.pt")
-                (output / "val_metrics_best.json").write_text(json.dumps({"epoch": epoch, **val_metrics}, indent=2), encoding="utf-8")
+                (output / "val_metrics_best.json").write_text(
+                    json.dumps({"epoch": epoch, "monitor": monitor, "monitor_value": best_value, **val_payload}, indent=2),
+                    encoding="utf-8",
+                )
                 write_predictions(output / "val_predictions_best.csv", labels, probs, ids, lesions, config["data"]["class_names"])
             if epoch == int(config["training"]["epochs"]):
                 torch.save({
@@ -286,7 +329,8 @@ def train(config_path: Path) -> Path:
                     "run_signature": signature,
                 }, output / "last.pt")
                 (output / "val_metrics_last.json").write_text(
-                    json.dumps({"epoch": epoch, **val_metrics}, indent=2), encoding="utf-8"
+                    json.dumps({"epoch": epoch, "monitor": monitor, "monitor_value": float(val_metrics[monitor]), **val_payload}, indent=2),
+                    encoding="utf-8",
                 )
                 write_predictions(
                     output / "val_predictions_last.csv", labels, probs, ids, lesions,
@@ -308,10 +352,12 @@ def train(config_path: Path) -> Path:
             "run_signature": signature,
             "git_commit": commit,
             "protocol_version": config["data"]["protocol_version"],
+            "loss_method": loss_config.get("method", "cross_entropy"),
+            "classifier_type": classifier_type,
         }
         (output / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         if mlflow:
-            for artifact in ("config.resolved.yaml", "environment.json", "split_manifest.json", "run_signature.json", "class_counts.json", "model_initialization.json", "metrics.csv", "val_metrics_best.json", "val_predictions_best.csv", "val_metrics_last.json", "val_predictions_last.csv", "summary.json"):
+            for artifact in ("config.resolved.yaml", "environment.json", "split_manifest.json", "run_signature.json", "class_counts.json", "model_initialization.json", "loss_initialization.json", "metrics.csv", "val_metrics_best.json", "val_predictions_best.csv", "val_metrics_last.json", "val_predictions_last.csv", "summary.json"):
                 mlflow.log_artifact(str(output / artifact))
             mlflow.set_tag("checkpoint_server_path", str(output / "best.pt"))
             mlflow.set_tag("primary_checkpoint_server_path", str(output / "last.pt"))

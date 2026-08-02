@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 
 def experiment_arm(name: str) -> str:
-    for prefix in ("stage2_", "stage1_"):
+    for prefix in ("stage3a_", "stage2_", "stage1_"):
         if name.startswith(prefix):
             return name[len(prefix):]
     return name

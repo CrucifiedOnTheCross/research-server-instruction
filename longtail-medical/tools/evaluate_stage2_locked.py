@@ -43,7 +43,7 @@ def load_run(run_dir: Path, checkpoint_name: str, expected_policy: str, test_man
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
     device = torch.device("cuda")
     model = model.to(device, memory_format=torch.channels_last)
-    metrics, labels, probabilities, image_ids, lesion_ids = evaluate(
+    _, validation_payload, labels, probabilities, image_ids, lesion_ids = evaluate(
         model, loader, device, config["training"]["amp_dtype"],
         config["data"]["class_names"], int(config["evaluation"]["ece_bins"]),
     )
@@ -56,7 +56,7 @@ def load_run(run_dir: Path, checkpoint_name: str, expected_policy: str, test_man
     )
     return {
         "config": config,
-        "image_metrics": metrics,
+        "image_metrics": validation_payload["image"],
         "lesion_metrics": lesion_metrics,
         "labels": labels,
         "probabilities": probabilities,

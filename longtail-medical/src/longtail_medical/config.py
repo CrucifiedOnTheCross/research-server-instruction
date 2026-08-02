@@ -24,6 +24,12 @@ def load_config(path: str | Path) -> dict[str, Any]:
         raise ValueError("Secondary checkpoint policy must be best_validation")
     if payload["checkpoint"].get("monitor") != payload["training"].get("monitor"):
         raise ValueError("Checkpoint and training monitor must match")
+    loss = payload.get("loss", {"method": "cross_entropy"})
+    if loss.get("method") == "ldam_drw":
+        epochs = int(payload["training"]["epochs"])
+        start = int(loss.get("drw_start_epoch", 0))
+        if not 0 < start < epochs:
+            raise ValueError("LDAM-DRW reweighting must start strictly within training")
     return payload
 
 
